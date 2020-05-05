@@ -185,6 +185,6 @@ def SAVPrejectionSolve(n, solution):
     print("||p||_2: ", np.sqrt(assemble((p0-p_exact)*(p0-p_exact)*dx)))
 
 
-for i in range (4):
+for i in range (1, 4):
     for j in range(4):
         SAVPrejectionSolve(pow(2,1+j), solutions[i])
