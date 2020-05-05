@@ -1,16 +1,18 @@
 """Chorin's splitting method."""
 from dolfin import *
-from exact_solution import solution_1
+from exact_solutions import solutions
 
-mesh = RectangleMesh(Point(0, 0), Point(1, 1), 64, 64)
+mesh = RectangleMesh(Point(0, 0), Point(1, 1), 8, 8)
 
-f = Expression((solution_1["fx"], solution_1["fy"]), degree=2, t=0)
-p_exact = Expression(solution_1["p"], degree=2, t=0)
-u_exact = Expression((solution_1["ux"], solution_1["uy"]), degree=2, t=0)
+solution = solutions[0]
 
 # Set dolfin parameters
 prec = "amg" if has_krylov_solver_preconditioner("amg") else "default"
 parameters['krylov_solver']['nonzero_initial_guess'] = True
+
+f = Expression((solution["fx"], solution["fy"]), degree=2, t=0)
+p_exact = Expression(solution["p"], degree=2, t=0)
+u_exact = Expression((solution["ux"], solution["uy"]), degree=2, t=0)
 
 # Define function spaces (P2-P1)
 V = VectorFunctionSpace(mesh, "Lagrange", 2)
@@ -29,7 +31,8 @@ nu = 0.01
 
 # Define boundary conditions
 bcu = [DirichletBC(V, u_exact, "on_boundary")]
-bcp = [DirichletBC(Q, p_exact, "x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS", "pointwise")]
+bcp = [DirichletBC(
+    Q, p_exact, "x[0] < DOLFIN_EPS && x[1] < DOLFIN_EPS", "pointwise")]
 
 # Create functions
 u0 = Function(V)
@@ -66,7 +69,7 @@ pfile = File("results/pressure.pvd")
 t = dt
 while t < T + DOLFIN_EPS:
 
-    # Update boundary condition 
+    # Update boundary condition
     p_exact.t = t
     u_exact.t = t
     f.t = t
@@ -95,8 +98,7 @@ while t < T + DOLFIN_EPS:
     u0.assign(u1)
     t += dt
 
-    # Print errors
-    print("||u||_2: ",assemble(inner((u0-u_exact),(u0-u_exact))*dx))
-    print("||p||_2: ",assemble((p1-p_exact)*(p1-p_exact)*dx))
-
+# Print errors
+print("||u||_2: ", assemble(inner((u0-u_exact), (u0-u_exact))*dx))
+print("||p||_2: ", assemble((p1-p_exact)*(p1-p_exact)*dx))
 
