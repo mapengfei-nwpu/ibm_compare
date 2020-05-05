@@ -1,6 +1,7 @@
 """Chorin's splitting method."""
 from dolfin import *
-from exact_solutions import solutions
+import numpy as np
+from solutions import solutions
 
 # Set dolfin parameters
 prec = "amg" if has_krylov_solver_preconditioner("amg") else "default"
@@ -9,7 +10,7 @@ parameters["std_out_all_processes"] = False
 
 
 def PrejectionSolve(n, solution):
-    mesh = RectangleMesh(Point(0, 0), Point(1, 1), 8, 8)
+    mesh = RectangleMesh(Point(0, 0), Point(1, 1), n, n)
     f = Expression((solution["fx"], solution["fy"]), degree=2, t=0)
     p_exact = Expression(solution["p"], degree=2, t=0)
     u_exact = Expression((solution["ux"], solution["uy"]), degree=2, t=0)
@@ -63,6 +64,7 @@ def PrejectionSolve(n, solution):
 
     # Time-stepping
     t = dt
+    u0.interpolate(u_exact)
     while t < T + DOLFIN_EPS:
 
         # Update boundary condition
@@ -91,8 +93,8 @@ def PrejectionSolve(n, solution):
         t += dt
 
     # Print errors
-    print("||u||_2: ", assemble(inner((u0-u_exact), (u0-u_exact))*dx))
-    print("||p||_2: ", assemble((p1-p_exact)*(p1-p_exact)*dx))
+    print("||u||_2: ", np.sqrt(assemble(inner((u0-u_exact), (u0-u_exact))*dx)))
+    print("||p||_2: ", np.sqrt(assemble((p1-p_exact)*(p1-p_exact)*dx)))
 
 
 
