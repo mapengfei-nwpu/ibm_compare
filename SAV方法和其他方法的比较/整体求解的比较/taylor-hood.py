@@ -3,13 +3,13 @@ from solutions import solutions
 import numpy as np
 
 # Load exact solutions
-solution = solutions[1]
+solution = solutions[3]
 f = Expression((solution["fx"], solution["fy"]), degree=5, t=0)
 p_exact = Expression(solution["p"], degree=5, t=0)
 u_exact = Expression((solution["ux"], solution["uy"]), degree=5, t=0)
 
 # Generate mesh
-n = 64
+n = 16
 mesh = RectangleMesh(Point(0, 0), Point(1, 1), n, n)
 
 # Define function spaces
@@ -33,7 +33,7 @@ wn = Function(W)
 # Define variational problem
 (u, p) = TrialFunctions(W)
 (v, q) = TestFunctions(W)
-F = inner((u-un)/k, v)*dx + inner(grad(un)*un, v)*dx + nu*inner(grad(u), grad(v))*dx - (div(v)*p + q*div(u))*dx - inner(f, v)*dx
+F = inner((u-un)/k, v)*dx + inner(grad(un)*un, v)*dx + nu*inner(grad(u), grad(v))*dx - div(v)*p*dx + q*div(u)*dx - inner(f, v)*dx
 a = lhs(F)
 L = rhs(F)
 
