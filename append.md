@@ -37,36 +37,43 @@ $$
 
 （流体和固体的应力张量只是在各自内部适用，这里并没有考虑交界面上的应力张量。IBFD/FE的文章中讲述了这种方法）
 
-**动量方程的弱形式** 在动量方程左右两端乘上任意函数$v$，再在整个区域上积分，我们就可以得到
+**变分形式** 为了在有限元框架下求解以上方程，我们应该在动量方程左右两端乘上任意函数$v$，再在整个区域上积分，我们就可以得到
 $$
 \int_\Omega \nabla\cdot\sigma vdx=\int_{\Omega\backslash B_t} \nabla \cdot \sigma_f v dx+\int_{B_t} \nabla \cdot \sigma_s v dx\\
 =\int_\Omega \nabla \cdot\sigma_f v dx+\int_{B_t}\nabla\cdot(\sigma_s-\sigma_f)vdx
 $$
-在固体的粘性和流体的粘性相同的情况下，可以得到
+在固体的粘性和流体的粘性相同的情况下，可得到
 $$
-\int_{B_t}\nabla\cdot(\sigma_s-\sigma_f)vdx=\int_{B_t}\nabla\cdot\sigma_s^e vdx=\int _{B_t}\nabla \cdot (J^{-1} \mathrm{P}_{\mathrm{s}}^{e} \mathrm{F}^{\mathrm{T}})vdx=\int_BdX
+\int_{B_t}\nabla\cdot(\sigma_s-\sigma_f)vdx=\int_{B_t}\nabla\cdot\sigma_s^e vdx=\int _{B_t}\nabla \cdot (J^{-1} \mathrm{P}_{\mathrm{s}}^{e} \mathrm{F}^{\mathrm{T}})vdx=\int_B\nabla \cdot（\mathrm{P}_{\mathrm{s}}^{e} \mathrm{F}^{\mathrm{T}})vdX
 $$
-因为固体不可压，在参考状态下积分和在实时状态下的积分结果一样。
-
-（此处提及固体和流体交界处的应力可能存在跳跃条件，那样的话就不能分部积分了）
-
-现在IBM就很明了了，只是比流体方程的求解多出了一项$\int_B\nabla \cdot P_s^eF^Tdx$，如果在有限元框架下求解这个方程是不需要delta插值的，直接积分即可。但是在实际操作过程中，测试函数和$P_s^eF^T$所在的有限元空间处于不同的网格中，对这一项的积分要么在全域上进行，要么就寻找测试函数非零的区域。传统的IB方法中有两种方法可以解这一项，一是IBLS方法，另一个是delta函数插值。
-
-**再返回强形式** 
+因为固体不可压，所以$J=1$，在参考状态下的积分和在实时状态下的积分结果一样。最后，原来的动量方程可以写成
+$$
+\int_{\Omega}(\frac{\partial \boldsymbol{u}}{\partial t}
++(\boldsymbol{u}\cdot \nabla) \boldsymbol{u})vdx=\int_{\Omega} \nabla \cdot \boldsymbol{\sigma}_fvdx+\int_{B_t}\nabla \cdot (J^{-1} \mathrm{P}_{\mathrm{s}}^{e} \mathrm{F}^{\mathrm{T}})vdx
+$$
 
 
+~~此处提及固体和流体交界处的应力可能存在跳跃条件，那样的话就不能分部积分了~~
 
+现在IBM就很明了了，只是比流体方程的求解多出了一项$\int_B\nabla \cdot P_s^eF^Tdx$。如果在有限元框架下求解这个方程是不需要delta插值的，直接积分即可。但是在实际操作过程中，测试函数和$P_s^eF^T$所在的有限元空间处于不同的网格中，对这一项的积分要么在全域上进行，要么就寻找测试函数非零的区域。传统的IB方法中有两种方法可以解这一项，一是IBLS方法，另一个是delta函数插值。
 
+## 2.有限元形式下的求解格式
 
-主要的区别
+因此，这一切都可以归纳为以下三部分的求解：
 
-IBLS是利用拉格朗日法描述固体的运动，IBFE是用欧拉法描述固体的运动，利用levelset方程捕捉流体和固体之间的界面。
+1. 求解流体的速度
+2. 求解固体的位移，进而得到形变梯度
+3. 作为源项写进流体的控制方程
 
+这三个部分可以整体求解，或者完全分开求解，或者2，3一起求解，1单独求解，每一种方法都能找到对应的文章。IBLS和IBLS方法的区别是第二部分。
 
+## 有限元框架下的流体和固体之间的交互
+
+因为流体的求解完全可以与固体的求解解耦。
 
 #### Delta 函数插值
 
-传统的IBFE的方法是在固体的拉格朗日坐标系中求出力，然后在根据固体的欧拉坐标和流体的拉格朗日坐标，利用delta函数，将力施加到流体方程上。
+传统的IBFE的方法是在固体的拉格朗日坐标系中求出力，然后在根据固体的欧拉坐标和流体的拉格朗日坐标，利用delta函数，将力施加到流体方程上。按照我们刚才得到的方程，完全没有必要使用delta函数进行插值，只要在B上进行积分即可。但是一来并不容易，再者差分形式的IBM中有现成的方法。利用delta函数插值，我们可以构造出相应的力。
 
 这里面很关键的一步是固体是如何获取速度，如何计算出形变梯度和力，如何将力反馈给流体。
 
