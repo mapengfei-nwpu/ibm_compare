@@ -10,7 +10,7 @@ $$
 +(\boldsymbol{u}\cdot \nabla) \boldsymbol{u} \right]= \nabla \cdot \boldsymbol{\sigma}+\rho \boldsymbol{b}
 $$
 
-其中$\rho(\boldsymbol{x}, t)$是密度，$\boldsymbol{u}(\boldsymbol{x}, t)$是速度，$\sigma(\boldsymbol{x}, t)$是柯西应力张量，$\boldsymbol{b}(\boldsymbol{x}, t)$是体积力。方程(1)和(2)对流体和固体都成立，区别在于固体和流体的本构方程不同，也就是柯西应力张量的不同。在讨论IBM的时候，不失一般性，我们可以假设固体和流体的密度恒为单位1，且没有外源力，那么原来的方程可以改成(3)和(4)。
+其中$\rho(\boldsymbol{x}, t)$是密度，$\boldsymbol{u}(\boldsymbol{x}, t)$是速度，$\sigma(\boldsymbol{x}, t)$是柯西应力张量，$\boldsymbol{b}(\boldsymbol{x}, t)$是体积力。方程(1)和(2)对流体和固体都成立，区别在于固体和流体的本构方程不同，也就是柯西应力张量的不同。在讨论IBM的时候，不失一般性，我们可以假设固体和流体的密度恒为单位1，且没有外源力，那么原来的方程可以改成(3)和(4)。IBM的重点在于对柯西应力张量的描述。
 $$
 \nabla \cdot \boldsymbol{u}=0 \quad
 $$
@@ -37,25 +37,24 @@ $$
 
 （流体和固体的应力张量只是在各自内部适用，这里并没有考虑交界面上的应力张量。IBFD/FE的文章中讲述了这种方法）
 
-**变分形式** 为了在有限元框架下求解以上方程，我们应该在动量方程左右两端乘上任意函数$v$，再在整个区域上积分，我们就可以得到
+**变分形式** 为了得到动量方程的弱形式，我们在方程的左右两端乘上任意函数$v$，再在整个区域上积分，我们就可以得到
 $$
 \int_\Omega \nabla\cdot\sigma vdx=\int_{\Omega\backslash B_t} \nabla \cdot \sigma_f v dx+\int_{B_t} \nabla \cdot \sigma_s v dx\\
 =\int_\Omega \nabla \cdot\sigma_f v dx+\int_{B_t}\nabla\cdot(\sigma_s-\sigma_f)vdx
 $$
-在固体的粘性和流体的粘性相同的情况下，可得到
+在固体的粘性和流体的粘性相同的情况下，可以消去固体和流体相同的部分，得到
 $$
 \int_{B_t}\nabla\cdot(\sigma_s-\sigma_f)vdx=\int_{B_t}\nabla\cdot\sigma_s^e vdx=\int _{B_t}\nabla \cdot (J^{-1} \mathrm{P}_{\mathrm{s}}^{e} \mathrm{F}^{\mathrm{T}})vdx=\int_B\nabla \cdot（\mathrm{P}_{\mathrm{s}}^{e} \mathrm{F}^{\mathrm{T}})vdX
 $$
-因为固体不可压，所以$J=1$，在参考状态下的积分和在实时状态下的积分结果一样。最后，原来的动量方程可以写成
+因为固体不可压，所以$J=1$。对于这一项，参考状态下的积分和实时状态下的积分结果一样。最后，原来的动量方程可以写成
 $$
 \int_{\Omega}(\frac{\partial \boldsymbol{u}}{\partial t}
 +(\boldsymbol{u}\cdot \nabla) \boldsymbol{u})vdx=\int_{\Omega} \nabla \cdot \boldsymbol{\sigma}_fvdx+\int_{B_t}\nabla \cdot (J^{-1} \mathrm{P}_{\mathrm{s}}^{e} \mathrm{F}^{\mathrm{T}})vdx
 $$
 
+~~有的论文中提及了固体和流体交界处的应力可能存在跳跃条件，还没看懂。~~
 
-~~此处提及固体和流体交界处的应力可能存在跳跃条件，那样的话就不能分部积分了~~
-
-现在IBM就很明了了，只是比流体方程的求解多出了一项$\int_B\nabla \cdot P_s^eF^Tdx$。如果在有限元框架下求解这个方程是不需要delta插值的，直接积分即可。但是在实际操作过程中，测试函数和$P_s^eF^T$所在的有限元空间处于不同的网格中，对这一项的积分要么在全域上进行，要么就寻找测试函数非零的区域。传统的IB方法中有两种方法可以解这一项，一是IBLS方法，另一个是delta函数插值。
+现在IBM就很明了了，只是比流体方程的求解多出了一项$\int_B\nabla \cdot P_s^eF^Tdx$。如果在有限元框架下求解这个方程是不需要delta插值的，直接积分即可，但是这样实际操作比较困难，测试函数和$P_s^eF^T$所在的有限元空间处于不同的网格中，因此对这一项的积分无法通过现有的实现方式实现。目前boffi等人实现了这种方法，此外，有限差分框架下的IBM有两种方式可以求解这一项，一种是最经典的delta函数插值的方式，另一种是IBLS方法。
 
 ## 2.有限元形式下的求解格式
 
@@ -77,7 +76,7 @@ $$
 
 这里面很关键的一步是固体是如何获取速度，如何计算出形变梯度和力，如何将力反馈给流体。
 
-固体的应力求解需要在拉格朗日框架下进行，相乘的基函数对应的是拉格朗日意义上的基函数，在这样的坐标系下计算出
+固体的应力求解需要在拉格朗日框架下进行，相乘的基函数对应的是拉格朗日意义上的基函数，在这样的坐标系下计算出。在一个时间步长内，公式如下。只需将IBFE文中的方法叙述一下即可。
 
 #### 输运方程和水平集函数
 
@@ -93,20 +92,20 @@ IBLS方法的核心是推导出固体的形变梯度随时间变化的函数，�
 
 Chorin的投影方法
 
-SAV方法
-
-
-
 #### 数值模拟
 
 ###### 1. 方腔流
 
 需要列出一个速度的表格，或者画图。相同时刻，取x=0.5和y=0.5画两幅图，进行比较。
 
-SAV+IBLS, SAV+IBFE, 投影+IBLS, 投影+IBFE
+投影+IBLS, 投影+IBFE
 
 
 
 ###### 2. 圆盘震动
 
 同上
+
+
+
+###### 3. 圆柱绕流
