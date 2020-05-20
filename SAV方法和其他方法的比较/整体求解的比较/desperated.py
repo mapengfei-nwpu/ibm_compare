@@ -47,12 +47,14 @@ F2 = inner(u/k, v)*dx + inner(grad(un) * un, v)*dx + nu * inner(grad(u), grad(v)
 
 a1 = lhs(F1)
 A1 = assemble(a1)
-A1.apply()
 L1 = rhs(F1)
 
 a2 = lhs(F2)
 A2 = assemble(a2)
 L2 = rhs(F2)
+
+w1 = Function(W)
+w2 = Function(W)
 
 t = dt
 while t < T + DOLFIN_EPS:
@@ -60,6 +62,8 @@ while t < T + DOLFIN_EPS:
     f.t = t
     u_exact.t = t
     p_exact.t = t
+    b1 = assemble(L1)
+    b2 = assemble(L2)
     # solve midstep values
     [bc.apply(A1, b1) for bc in bcs1]
     [bc.apply(A2, b2) for bc in bcs2]
