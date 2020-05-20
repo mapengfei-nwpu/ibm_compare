@@ -11,11 +11,10 @@ v = TestFunction(V)
 
 # Define coefficients
 u_  = Coefficient(V)
-p_n = Coefficient(Q)
 p_  = Coefficient(Q)
 k   = Coefficient(R)
 
 
 # Define bilinear and linear forms
 a = dot(u, v)*dx
-L = dot(u_, v)*dx - k*dot(nabla_grad(p_-p_n), v)*dx
+L = dot(u_, v)*dx - k*dot(nabla_grad(p_), v)*dx

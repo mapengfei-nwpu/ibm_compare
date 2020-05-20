@@ -170,7 +170,6 @@ public:
 			gauss_values[i][0] = solid_values[2 * i];
 			gauss_values[i][1] = solid_values[2 * i + 1];
 		}
-		/// std::cout << temp_size << std::endl;
 		return solid_to_fluid_raw(fluid, gauss_values, gauss_points, weights);
 	}
 
@@ -227,6 +226,7 @@ public:
 		
 		return std::make_pair(basis_values, cell_dofmap_vector);
 	}
+
 	void integrate_basis(
 		double weight,
 		std::pair<std::vector<double>, std::vector<std::size_t>> &dab,

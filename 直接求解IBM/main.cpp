@@ -62,7 +62,7 @@ void my_move(Mesh &mesh, Function &displacement)
 int main()
 {
     // Create chanel mesh
-    size_t nnn = 128;
+    size_t nnn = 64;
     Point point0(0, 0, 0);
     Point point1(1.0, 1.0, 0);
     IBMesh ba({point0, point1}, {nnn, nnn});
@@ -130,7 +130,6 @@ int main()
     L3.k = k;
     L3.u_ = u_;
     L3.p_ = p_;
-    L3.p_n = p_n;
     
     L4.u = body_disp;
 
@@ -158,7 +157,6 @@ int main()
         // Compute tentative velocity step
         begin("Computing tentative velocity");
         assemble(b1, L1);
-        std::cout<<b1.size()<<std::endl;
         for (size_t i = 0; i < b1.size(); i++)
             b1.setitem(i, b1.getitem(i) + force[i]);
         for (std::size_t i = 0; i < bcu.size(); i++)

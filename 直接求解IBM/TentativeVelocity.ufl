@@ -1,29 +1,3 @@
-# Copyright (C) 2010 Anders Logg
-#
-# This file is part of DOLFIN.
-#
-# DOLFIN is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Lesser General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# DOLFIN is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU Lesser General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
-# along with DOLFIN. If not, see <http://www.gnu.org/licenses/>.
-#
-# First added:  2010-08-30
-# Last changed: 2011-06-30
-#
-# The bilinear form a(u, v) and linear form L(v) for the tentative
-# velocity step in Chorin's method for the incompressible
-# Navier-Stokes equations.
-#
-# Compile this form with FFC: ffc -l dolfin TentativeVelocity.ufl.
-
 # Define function spaces (P2-P1)
 V = VectorElement("P", triangle, 2)
 Q = FiniteElement("P", triangle, 1)
@@ -36,13 +10,11 @@ v = TestFunction(V)
 # Define coefficients
 u_n = Coefficient(V)
 
-n = FacetNormal(triangle)
 k = Coefficient(R)
-rho = 1
 mu = 0.01
 
 # Define variational problem for step 1
-eq = dot((u - u_n) / k, v)*dx + dot(dot(u_n, nabla_grad(u_n)), v)*dx + inner(grad(u), grad(v))*dx
+eq = dot((u - u_n) / k, v)*dx + dot(dot(u_n, nabla_grad(u_n)), v)*dx + mu*inner(grad(u), grad(v))*dx
 
 a  = lhs(eq)
 L  = rhs(eq)
