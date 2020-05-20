@@ -125,7 +125,6 @@ int main()
 
     L2.k = k;
     L2.u_ = u_;
-    L2.p_n = p_n;
     
     L3.k = k;
     L3.u_ = u_;
