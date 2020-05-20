@@ -10,7 +10,6 @@ p = TrialFunction(Q)
 q = TestFunction(Q)
 
 # Define coefficients
-p_n = Coefficient(Q)
 u_  = Coefficient(V)
 k   = Coefficient(R)
 

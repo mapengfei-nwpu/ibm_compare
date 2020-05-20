@@ -1,6 +1,3 @@
-# define the variational
-# Compile this form with FFC: ffc -l dolfin ElasticStructure.ufl.
-
 # Define function spaces (P2)
 V = VectorElement("P", triangle, 2)
 
