@@ -26,7 +26,7 @@ std::vector<T> my_mpi_gather(std::vector<T> local)
 	return global;
 }
 
-std::vector<std::array<double, 2>> get_global_dof_coordinates(const Function& f)
+std::vector<std::array<double, 2>> get_global_dof_coordinates(const Function &f)
 {
 	/// some shorcut
 	auto mesh = f.function_space()->mesh();
@@ -52,7 +52,7 @@ std::vector<std::array<double, 2>> get_global_dof_coordinates(const Function& f)
 	return dof_coordinates;
 }
 
-std::vector<double> get_global_dofs(const Function& f)
+std::vector<double> get_global_dofs(const Function &f)
 {
 	/// some shorcut
 	auto mesh = f.function_space()->mesh();
@@ -69,10 +69,10 @@ std::vector<double> get_global_dofs(const Function& f)
 }
 
 void get_gauss_rule(
-	const Function& f,
-	std::vector<double>& coordinates,
-	std::vector<double>& values,
-	std::vector<double>& weights)
+	const Function &f,
+	std::vector<double> &coordinates,
+	std::vector<double> &values,
+	std::vector<double> &weights)
 {
 	// Construct Gauss quadrature rules
 	SimplexQuadrature gq(2, 9);
@@ -115,16 +115,16 @@ class DeltaInterplation
 {
 public:
 	/// information about mesh structure.
-	IBMesh& um;
+	IBMesh &um;
 	std::vector<double> side_lengths;
 
 	/// construct function.
-	DeltaInterplation(IBMesh& uniform_mesh) : um(uniform_mesh)
+	DeltaInterplation(IBMesh &uniform_mesh) : um(uniform_mesh)
 	{
 		side_lengths = um.side_length();
 	}
 
-	void fluid_to_solid(Function& fluid, Function& solid)
+	void fluid_to_solid(Function &fluid, Function &solid)
 	{
 		/// Calculate global dof coordinates and dofs.
 		auto dof_coordinates = get_global_dof_coordinates(solid);
@@ -135,9 +135,9 @@ public:
 	}
 
 	void fluid_to_solid_raw(
-		Function& fluid,
-		std::vector<double>& solid_values,
-		std::vector<std::array<double, 2>>& solid_coordinates)
+		Function &fluid,
+		std::vector<double> &solid_values,
+		std::vector<std::array<double, 2>> &solid_coordinates)
 	{
 		/// iterate every dof coordinate.
 		auto value_size = fluid.value_size();
@@ -152,7 +152,7 @@ public:
 	}
 
 	/// Assign the solid displacement with the velocity of fluid.
-	std::vector<double> solid_to_fluid(Function& fluid, Function& solid)
+	std::vector<double> solid_to_fluid(Function &fluid, Function &solid)
 	{
 		std::vector<double> solid_dof_coordinates;
 		std::vector<double> solid_values;
@@ -175,10 +175,10 @@ public:
 	}
 
 	std::vector<double> solid_to_fluid_raw(
-		Function& fluid,
-		std::vector<std::array<double, 2>>& gauss_values,
-		std::vector<std::array<double, 2>>& gauss_points,
-		std::vector<double>& weights)
+		Function &fluid,
+		std::vector<std::array<double, 2>> &gauss_values,
+		std::vector<std::array<double, 2>> &gauss_points,
+		std::vector<double> &weights)
 	{
 		dolfin_assert(solid_values.size() == gauss_points.size());
 		dolfin_assert(solid_values.size() == gauss_weights.size());
@@ -195,10 +195,10 @@ public:
 		return results;
 	}
 
-	std::vector<std::pair<size_t, double>> basis_values_gauss(
-		const Point& point,
-		const Cell& cell,
-		const Function& f)
+	std::pair<std::vector<double>, std::vector<std::size_t>> basis_values_gauss(
+		const Point &point,
+		const Cell &cell,
+		const Function &f)
 	{
 		auto element = f.function_space()->element();
 
@@ -212,53 +212,51 @@ public:
 		std::vector<double> coordinate_dofs;
 		cell.get_coordinate_dofs(coordinate_dofs);
 
-		for (size_t i = 0; i < space_dimension; i++)
-		{
-			std::vector<double> temp_values(value_size);
-			element->evaluate_basis(i,
-				temp_values.data(),
-				point.coordinates(),
-				coordinate_dofs.data(),
-				ufc_cell.orientation);
-			for (size_t j = 0; j < value_size; j++)
-			{
-				basis_values[j * space_dimension + i] = temp_values[j];
-			}
-		}
+		element->evaluate_basis_all(
+			basis_values.data(),
+			point.coordinates(),
+			coordinate_dofs.data(),
+			ufc_cell.orientation);
+		
 		auto cell_dofmap = f.function_space()->dofmap()->cell_dofs(cell.index());
-		std::vector<std::pair<size_t, double>> dofs_and_basis_values;
+		std::vector<size_t> cell_dofmap_vector;
 		for (size_t i = 0; i < cell_dofmap.size(); i++)
 		{
-			dofs_and_basis_values.push_back(std::make_pair(cell_dofmap[i], basis_values[i]));
+			cell_dofmap_vector.push_back(cell_dofmap[i]);
 		}
-		std::cout << cell_dofmap.size() << std::endl;
-		std::cout << space_dimension * value_size << std::endl;
-		return dofs_and_basis_values;
+		
+		return std::make_pair(basis_values, cell_dofmap_vector);
 	}
 	void integrate_basis(
 		double weight,
-		const std::vector<std::pair<size_t, double>>& dab,
-		const std::array<double, 2>& solid_values,
-		std::vector<double>& results)
+		std::pair<std::vector<double>, std::vector<std::size_t>> &dab,
+		const std::array<double, 2> &solid_values,
+		std::vector<double> &results)
 	{
 
 		size_t space_dimension = 12;
 		size_t value_size = 2;
 
+		
+		auto basis_value = dab.first;
+		auto cell_dofmap = dab.second;
+
+		auto count = cell_dofmap.size();
+
 		/// Every pair in dab consists of a dof index and a basis value.
 		/// dab[index].first and dab[index].second
-		for (size_t i = 0; i < space_dimension; i++)
+		for (size_t i = 0; i < count; i++)
 		{
 			for (size_t j = 0; j < value_size; j++)
 			{
-				results[dab[i + j * space_dimension].first] += weight * solid_values[j] * dab[i + j * space_dimension].second;
+				results[cell_dofmap[i]] += weight * solid_values[j] * basis_value[2*i+j];
 			}
 		}
 	}
 
-	Cell find_cell_contianing_point(const Point& point, const Function& f)
+	Cell find_cell_contianing_point(const Point &point, const Function &f)
 	{
-		/// mesh is regularized.
+		/// must be regular grid.
 		auto mesh = f.function_space()->mesh();
 
 		auto index_1 = 2 * um.hash(point);
@@ -267,18 +265,6 @@ public:
 		Cell cell_1(*mesh, index_1);
 		Cell cell_2(*mesh, index_2);
 
-		/// if cell_1 contains point, cell = cell_1.
-		/// else cell = cell_2.
-		Cell cell = cell_1.contains(point) ? cell_1 : cell_2;
-
-		/// check
-		/// std::vector<double> coordinates;
-		/// cell.get_coordinate_dofs(coordinates);
-		/// std::cout<<point<<std::endl;
-		/// for	(size_t i = 0; i < 3; i++){
-		/// 	std::cout<< coordinates[i*2] << ", " << coordinates[i*2+1] << std::endl;
-		/// }
-
-		return cell;
+		return cell_1.contains(point) ? cell_1 : cell_2;
 	}
 };
