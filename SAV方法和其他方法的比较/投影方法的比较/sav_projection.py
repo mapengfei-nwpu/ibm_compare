@@ -172,7 +172,7 @@ def SAVPrejectionSolve(n, solution):
         sav_update.u1.assign(u1)
         sav_update.u2.assign(u2)
         S = S_solve(u0, u1, u2)
-        (un,pn) = sav_update.solve(S)
+        (un,pn) = sav_update.solve(1)
 
         # update u0 and t
         u0.assign(un)
@@ -180,11 +180,11 @@ def SAVPrejectionSolve(n, solution):
         t += dt
     
 
-    # Print errors
-    print("||u||_2: ", np.sqrt(assemble(inner((u0-u_exact), (u0-u_exact))*dx)))
-    print("||p||_2: ", np.sqrt(assemble((p0-p_exact)*(p0-p_exact)*dx)))
+        # Print errors
+        print("||u||_2: ", np.sqrt(assemble(inner((u0-u_exact), (u0-u_exact))*dx)))
+        print("||p||_2: ", np.sqrt(assemble((p0-p_exact)*(p0-p_exact)*dx)))
 
 
-for i in range (1, 4):
+for i in range (0, 4):
     for j in range(4):
-        SAVPrejectionSolve(pow(2,1+j), solutions[i])
+        SAVPrejectionSolve(pow(3,1+j), solutions[i])

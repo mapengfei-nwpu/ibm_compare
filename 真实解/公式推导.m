@@ -1,4 +1,4 @@
-syms x y t;
+syms x y t nu;
 
 %% 零Dirichlet边界条件
 %% 区域都是[0,1]x[0,1], T=0.1, delta=0.1
@@ -36,7 +36,6 @@ uy(x, y, t) = (-2 * x * y^3/3 + 2 - pi * sin(pi * x)) * cos(2 * pi * t);
 p(x, y, t) = -(2 - pi * sin(pi * x)) * cos(2 * pi * y) * cos(2 * pi * t);
 
 %% solve
-nu = 0.01
 fx = diff(ux, t) + (ux * diff(ux, x) + uy * diff(ux, y)) - nu * (diff(ux, x, 2) + diff(ux, y, 2)) + diff(p, x);
 fy = diff(uy, t) + (ux * diff(uy, x) + uy * diff(uy, y)) - nu * (diff(uy, x, 2) + diff(uy, y, 2)) + diff(p, y);
 

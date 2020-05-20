@@ -2,14 +2,15 @@ from dolfin import *
 from solutions import solutions
 import numpy as np
 
+nu = 1
 # Load exact solutions
-solution = solutions[1]
-f = Expression((solution["fx"], solution["fy"]), degree=5, t=0)
+solution = solutions[6]
+f = Expression((solution["fx"], solution["fy"]), degree=5, t=0, nu = nu)
 p_exact = Expression(solution["p"], degree=5, t=0)
 u_exact = Expression((solution["ux"], solution["uy"]), degree=5, t=0)
 
 # Generate mesh
-n = 64
+n = 32
 mesh = RectangleMesh(Point(0, 0), Point(1, 1), n, n)
 
 # Define function spaces
@@ -25,13 +26,12 @@ bcs2 = [DirichletBC(W.sub(0), (0, 0), "on_boundary"),
         DirichletBC(W.sub(1), 0, "x[0]<DOLFIN_EPS && x[1]<DOLFIN_EPS","pointwise")]
 
 # Define time step
-dt = 0.01
+dt = 0.01/n/n
 k = Constant(dt)
 
 # Define parameters
-nu = 0.01
 delta = 0.1
-T = 10
+T = 0.1
 
 
 class SAVSolver1:
@@ -109,18 +109,18 @@ def S_solve(u0, u1, u2):
     temp = 0.5*assemble(inner(u0, u0)*dx) + delta
     r = sqrt(temp)
     a2 = nu*assemble(inner(grad(u2), grad(u2))*dx) + 0.5*dt*temp
-    a1 = 2*nu*assemble(inner(grad(u2), grad(u1))*dx) - 2 * \
-        r/dt*sqrt(temp)-assemble(inner(f, u2)*dx)
-    a0 = nu*assemble(inner(grad(u1), grad(u1))*dx) - assemble(inner(f, u1)*dx)
+    a1 = 2*nu*assemble(inner(grad(u2), grad(u1))*dx)  -assemble(inner(f, u2)*dx)- 2 * r/dt*sqrt(temp) #
+    a0 = nu*assemble(inner(grad(u1), grad(u1))*dx)  - assemble(inner(f, u1)*dx)
     s1 = (-a1+sqrt(a1*a1-4*a2*a0))/2/a2
     s2 = (-a1-sqrt(a1*a1-4*a2*a0))/2/a2
+    print("a0, a1, a2: ", a0, a1, a2)
+    print("r: ",r)
     print(s1, s2)
     if max(s1, s2) > 0 and min(s1, s2) < 0:
         return max(s1, s2)
     if abs(s1-1) > abs(s2-1):
         return s2
-    else:
-        return s1
+    return s1
 
 
 w0 = Function(W)

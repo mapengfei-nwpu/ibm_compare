@@ -12,7 +12,6 @@ def TalorHoodSolve(n, solution):
     u_exact = Expression((solution["ux"], solution["uy"]), degree=5, t=0)
 
     # Generate mesh
-    n = 16
     mesh = RectangleMesh(Point(0, 0), Point(1, 1), n, n)
 
     # Define function spaces
