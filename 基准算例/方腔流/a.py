@@ -31,6 +31,13 @@ un = Function(V)
 u_ = Function(V)
 pn = Function(Q)
 
+
+wn = Function(V)
+wn.interpolate(Expression(("x[0]","x[1]"), degree = 1))
+
+dofmap = V.dofmap()
+element = V.element()
+
 # Define coefficients
 k = Constant(dt)
 
@@ -61,7 +68,8 @@ parameters['krylov_solver']['nonzero_initial_guess'] = True
 # Create files for storing solution
 ufile = File("results/velocity.pvd")
 pfile = File("results/pressure.pvd")
-ffile = File("results/force.pvd")
+wfile = File("results/displacement.pvd")
+yfile = File("results/det.pvd")
 
 # Time-stepping
 t = dt
@@ -79,12 +87,26 @@ while t < T + DOLFIN_EPS:
     b3 = assemble(L3)
     [bc.apply(A3, b3) for bc in bcu]
     solve(A3, un.vector(), b3, "bicgstab", prec)
+     # update displacement
+    for cell in cells(mesh):
+        dof_coordinates = element.tabulate_dof_coordinates(cell)
+        dof_index = dofmap.cell_dofs(cell.index())
+        for i in range(6):
+            position = wn(dof_coordinates[i])
+            if position[0] < 1.0 and position[0]>0.0 and position[1] < 1.0 and position[1] > 0.0:
+                u0 = un(position)
+            else:
+                u0 = [0,0]
+            wn.vector()[dof_index[i]]   += dt*u0[0]
+            wn.vector()[dof_index[i+6]] += dt*u0[1]
     # Save to file
     t += dt
-    i += 1
-    if i%100 == 0:
-        ufile << un
-        pfile << pn
+    ufile << un
+    pfile << pn
+    wfile << wn
+    yn = project(det(grad(wn)),Q)
+    print(yn(0.5,0.5))
+    yfile << yn
 
 
 
