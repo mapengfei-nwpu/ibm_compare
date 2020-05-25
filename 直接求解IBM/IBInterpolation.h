@@ -173,8 +173,9 @@ public:
 		return solid_to_fluid_raw(fluid, gauss_values, gauss_points, weights);
 	}
 
+	/// 下面是代码的核心
 	std::vector<double> solid_to_fluid_raw(
-		Function &fluid,
+		Function &displacement,
 		std::vector<std::array<double, 2>> &gauss_values,
 		std::vector<std::array<double, 2>> &gauss_points,
 		std::vector<double> &weights)
@@ -189,7 +190,7 @@ public:
 			Point point(2, gauss_points[i].data());
 			Cell cell = find_cell_contianing_point(point, fluid);
 			auto dab = basis_values_gauss(point, cell, fluid);
-			integrate_basis(weights[i], dab, gauss_values[i], results);
+			assemble(displacement, weights[i], dab, gauss_values[i], results);
 		}
 		return results;
 	}
@@ -203,7 +204,7 @@ public:
 
 		auto value_size = f.value_size();
 		auto space_dimension = element->space_dimension();
-		std::vector<double> basis_values(value_size * space_dimension);
+		std::vector<double> basis_values(value_size * space_dimension * 2);
 
 		ufc::cell ufc_cell;
 		cell.get_cell_data(ufc_cell);
@@ -211,49 +212,57 @@ public:
 		std::vector<double> coordinate_dofs;
 		cell.get_coordinate_dofs(coordinate_dofs);
 
-		element->evaluate_basis_all(
+		element->evaluate_basis_derivatives_all(
+			1,
 			basis_values.data(),
 			point.coordinates(),
 			coordinate_dofs.data(),
 			ufc_cell.orientation);
-		
+
 		auto cell_dofmap = f.function_space()->dofmap()->cell_dofs(cell.index());
 		std::vector<size_t> cell_dofmap_vector;
 		for (size_t i = 0; i < cell_dofmap.size(); i++)
 		{
 			cell_dofmap_vector.push_back(cell_dofmap[i]);
 		}
-		
+		/// the size of basis_values is four times of the size of cell_dofmap_vector
 		return std::make_pair(basis_values, cell_dofmap_vector);
 	}
 
-	void integrate_basis(
+
+	void assemble(
+		const Function &w,
 		double weight,
 		std::pair<std::vector<double>, std::vector<std::size_t>> &dab,
 		const std::array<double, 2> &solid_values,
 		std::vector<double> &results)
 	{
 
-		size_t space_dimension = 12;
-		size_t value_size = 2;
-
-		
+		std::vector<double> grad_w(4);
+		auto &dofs = *w.vector();
 		auto basis_value = dab.first;
 		auto cell_dofmap = dab.second;
+		double mu_s = 0.2;
 
-		auto count = cell_dofmap.size();
-
-		/// Every pair in dab consists of a dof index and a basis value.
-		/// dab[index].first and dab[index].second
-		for (size_t i = 0; i < count; i++)
-		{
-			for (size_t j = 0; j < value_size; j++)
-			{
-				results[cell_dofmap[i]] += weight * solid_values[j] * basis_value[2*i+j];
+		/// 计算 = \int uF:\grad v dx 
+		for (size_t i = 0; i < cell_dofmap.size(); i++){
+			for (size_t i = 0; i < 4; i++){
+				grad_w[j] += dofs[cell_dofmap[i]] * basis_value[i*4 + j];
 			}
 		}
-	}
 
+		for (size_t i = 0; i < cell_dofmap.size(); i++){
+			double result = 0.0;
+			
+			result += mu_s*(grad_w[j]*basis_value[i*4]);
+			result += mu_s*(grad_w[j]*basis_value[i*4]);
+			result += mu_s*(grad_w[j]*basis_value[i*4]);
+			result += mu_s*(grad_w[j]*basis_value[i*4]);
+			
+			results[dofs[cell_dofmap[i]]] += weight*result;
+		}
+	}
+	
 	Cell find_cell_contianing_point(const Point &point, const Function &f)
 	{
 		/// must be regular grid.
@@ -267,4 +276,5 @@ public:
 
 		return cell_1.contains(point) ? cell_1 : cell_2;
 	}
+
 };
