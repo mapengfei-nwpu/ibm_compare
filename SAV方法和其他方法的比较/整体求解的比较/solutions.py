@@ -46,7 +46,6 @@ solution["fy"] = fy
 solutions.append(solution)
 
 # 1.4
-# 压强空间收敛阶不稳定
 solution = {}
 ux = "2 * pi * sin(pi * x[0])*sin(pi * x[0]) * sin(pi * x[1]) * cos(pi * x[1]) * cos(t)"
 uy = "-2 * pi * sin(pi * x[0]) * cos(pi * x[0]) * sin(pi * x[1])*sin(pi * x[1]) * cos(t)"
@@ -89,6 +88,7 @@ solution["fx"] = fx
 solution["fy"] = fy
 solutions.append(solution)
 
+# 可以任意指定nu
 solution = {}
 ux = "-exp(t) * x[0]*x[0] * (x[0] - 1)*(x[0] - 1) * x[1] * (x[1] - 1) * (2 * x[1] - 1) / 256"
 uy = "exp(t) * x[0] * (x[0] - 1) * (2 * x[0] - 1) * x[1]*x[1] * (x[1] - 1)*(x[1] - 1)/256"
