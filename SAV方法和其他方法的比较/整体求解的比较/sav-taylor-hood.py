@@ -4,7 +4,7 @@ import numpy as np
 
 nu = 1
 # Load exact solutions
-solution = solutions[6]
+solution = solutions[1]
 f = Expression((solution["fx"], solution["fy"]), degree=5, t=0, nu = nu)
 p_exact = Expression(solution["p"], degree=5, t=0)
 u_exact = Expression((solution["ux"], solution["uy"]), degree=5, t=0)
@@ -108,7 +108,7 @@ class SAVUpdate:
 def S_solve(u0, u1, u2):
     temp = 0.5*assemble(inner(u0, u0)*dx) + delta
     r = sqrt(temp)
-    a2 = nu*assemble(inner(grad(u2), grad(u2))*dx) + 0.5*dt*temp
+    a2 = nu*assemble(inner(grad(u2), grad(u2))*dx) + 2.0/dt*temp
     a1 = 2*nu*assemble(inner(grad(u2), grad(u1))*dx)  -assemble(inner(f, u2)*dx)- 2 * r/dt*sqrt(temp) #
     a0 = nu*assemble(inner(grad(u1), grad(u1))*dx)  - assemble(inner(f, u1)*dx)
     s1 = (-a1+sqrt(a1*a1-4*a2*a0))/2/a2

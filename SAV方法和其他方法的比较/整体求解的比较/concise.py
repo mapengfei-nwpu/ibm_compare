@@ -1,4 +1,3 @@
-# SAV程序，取S=1
 from dolfin import *
 from solutions import solutions
 import numpy as np
