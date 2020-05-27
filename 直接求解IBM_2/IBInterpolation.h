@@ -5,7 +5,7 @@ using namespace dolfin;
 
 /// calculate derivatives at gauss point.
 void get_gauss_rule(
-	const Function &f,
+	const Function &displace,
 	std::vector<std::vector<double>> &coordinates,
 	std::vector<std::vector<double>> &values,
 	std::vector<double> &weights)
@@ -13,10 +13,10 @@ void get_gauss_rule(
 	// Construct Gauss quadrature rules
     // dimension 2 and order 9
 	SimplexQuadrature gq(2, 9);
-	auto mesh = f.function_space()->mesh();
-    auto dofmap = f.function_space()->dofmap();
-    auto element = f.function_space()->element();
-    auto value_size = f.value_size();
+	auto mesh = displace.function_space()->mesh();
+    auto dofmap = displace.function_space()->dofmap();
+    auto element = displace.function_space()->element();
+    auto value_size = displace.value_size();
     auto derivative_value_size = value_size*value_size;
 	auto space_dimension = element->space_dimension();
 	
@@ -51,7 +51,7 @@ void get_gauss_rule(
 			    for (size_t j = 0; j < derivative_value_size; j++)
                 {
                     derivative_value[j] += 
-                        (*f.vector())[cell_dofmap[i]] * 
+                        (*displace.vector())[cell_dofmap[i]] * 
                         basis_derivative_values[derivative_value_size*i + j];
                 }
 		    }
@@ -60,4 +60,41 @@ void get_gauss_rule(
             weights.push_back(weight);
 		}
 	}
+}
+
+/// 一个函数离散成了三个变量：高斯点，函数值，权重。
+/// 现在要对它求积，将它与另一个函数空间的基函数点积，然后积分。
+
+/// 这个函数传入：一个高斯点，高斯点上的函数值，
+///        返回：这个单元内非零的基函数在这个点上的值，对应基函数的自由度索引。
+
+void basis_derivative_values(
+    const FunctionSpace &function_space,
+    const Cell &cell,
+    const std::vector<double> &point,
+    std::vector<size_t> &cell_dofmap,
+    std::vector<double> &cell_basis_derivatives)
+{
+    /// cell_basis_derivatives 的大小是 cell_dofmap 的四倍。
+}
+
+std::vector<double> assemble(
+    const Function& displace,
+    const FunctionSpace& function_space)
+{
+    /// step 1
+    /// 调用：get_gauss_rule
+    /// 输入：f
+    /// 输出：coordinates, values, weights
+    
+    /// step 2 
+    /// 遍历高斯点
+            /// basis_derivative_values
+            /// 输入：point, cell, function_space
+            /// 输出：cell_dofmap, cell_basis_derivatives
+
+            /// 做点乘
+            /// result = cell_basis_derivatives[4*i, 4*i+3] 点乘 values[4*i, 4*i+3]
+            /// results[cell_dofmap[i]] += weight*result 
+
 }
