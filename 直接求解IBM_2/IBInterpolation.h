@@ -78,14 +78,48 @@ void basis_derivative_values(
     /// cell_basis_derivatives 的大小是 cell_dofmap 的四倍。
 }
 
+Cell find_cell(){
+
+}
+
 std::vector<double> assemble(
     const Function& displace,
     const FunctionSpace& function_space)
 {
     /// step 1
     /// 调用：get_gauss_rule
-    /// 输入：f
+    /// 输入：displace
     /// 输出：coordinates, values, weights
+    
+    std::vector<double> results(function_space.dim());
+
+    std::vector<std::vector<double>> coordinates;
+	std::vector<std::vector<double>> values;
+	std::vector<double> weights;
+
+    get_gauss_rule(displace, coordinates, values, weights);
+
+    for (size_t i = 0; i < coordinates.size(); i++)
+    {
+        auto point = coordinates[i];
+        auto value = values[i];
+        auto weight = weights[i];
+        auto cell = find_cell();
+
+        std::vector<size_t> cell_dofmap;
+        std::vector<double> cell_basis_derivatives;
+        basis_derivative_values(function_space,cell,point,cell_dofmap,cell_basis_derivatives);
+
+        for (size_t j = 0; j < cell_dofmap.size(); j++)
+        {
+            double result = 0.0;
+            for (size_t k = 0; k < 4; k++)
+            {
+                result += cell_basis_derivatives[4*i+k] * value[k];
+            }
+            results[cell_dofmap[i]] += weight*result;
+        }
+    }
     
     /// step 2 
     /// 遍历高斯点
