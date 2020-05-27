@@ -32,7 +32,7 @@ if (HAVE_NO_MULTLINE)
 endif()
 
 # Executable
-add_executable(${PROJECT_NAME} main.cpp)
+add_executable(${PROJECT_NAME} test_gauss_derivative.cpp)
 
 # Target libraries
 target_link_libraries(${PROJECT_NAME} dolfin)
