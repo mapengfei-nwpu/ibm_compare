@@ -3,11 +3,9 @@
 #include <numeric>
 using namespace dolfin;
 /// calculate derivatives at gauss point.
-void get_gauss_rule(
+void calculate_values_at_gauss_points(
     const Function &displace,
-    std::vector<std::vector<double>> &coordinates,
-    std::vector<std::vector<double>> &values,
-    std::vector<double> &weights)
+    std::vector<std::vector<double>> &values)
 {
     // Construct Gauss quadrature rules
     // dimension 2 and order 9
@@ -35,7 +33,6 @@ void get_gauss_rule(
         for (size_t i = 0; i < qr.second.size(); i++)
         {
             std::vector<double> point({qr.first[2 * i], qr.first[2 * i + 1]});
-            double weight = qr.second[i];
             element->evaluate_basis_derivatives_all(
                 1,
                 basis_derivative_values.data(),
@@ -54,8 +51,38 @@ void get_gauss_rule(
                 }
             }
             values.push_back(derivative_value);
-            coordinates.push_back(point);
-            weights.push_back(weight);
+        }
+    }
+}
+
+void calculate_gauss_points_and_weights(
+    const Function &displace,
+    std::vector<std::vector<double>> &points,
+    std::vector<double> weights)
+{
+    // Construct Gauss quadrature rules
+    // dimension 2 and order 9
+    SimplexQuadrature gq(2, 9);
+    auto mesh = displace.function_space()->mesh();
+
+    for (CellIterator cell(*mesh); !cell.end(); ++cell)
+    {
+        ufc::cell ufc_cell;
+        cell->get_cell_data(ufc_cell);
+
+        std::vector<double> coordinate_dofs;
+        cell->get_coordinate_dofs(coordinate_dofs);
+
+        std::vector<double> basis_derivative_values(value_size * space_dimension * 2);
+
+        /// Compute quadrature rule for the cell.
+        /// qr.second and qr.first are the coordinate and weight of gauss point respectively.
+        auto qr = gq.compute_quadrature_rule(*cell);
+        for (size_t i = 0; i < qr.second.size(); i++)
+        {
+            std::vector<double> point({qr.first[2 * i], qr.first[2 * i + 1]});
+            points.push_back(point);
+            weights.push_back(qr.second);
         }
     }
 }
@@ -102,26 +129,19 @@ void calculate_basis_derivative_values(
     }
 }
 
-std::vector<double> assemble(
-    const Function &displace,
-    const FunctionSpace &function_space)
+std::vector<double> source_assemble(
+    std::vector<std::vector<double>> points,
+    std::vector<std::vector<double>> values,
+    std::vector<double> weights,
+    const FunctionSpace &function_space,
+    const IBMesh &um)
 {
-
-    auto space_dimension = function_space.element->space_dimension();
-    std::vector<double> results(function_space.dim());
-
-    std::vector<std::vector<double>> coordinates;
-    std::vector<std::vector<double>> values;
-    std::vector<double> weights;
-
-    get_gauss_rule(displace, coordinates, values, weights);
-
-    for (size_t i = 0; i < coordinates.size(); i++)
+    for (size_t i = 0; i < points.size(); i++)
     {
-        auto point = coordinates[i];
+        auto point = points[i];
         auto value = values[i];
         auto weight = weights[i];
-        auto cell = find_cell();
+        auto cell = find_cell(point, um);
 
         std::vector<size_t> cell_dofmap(space_dimension);
         std::vector<double> cell_basis_derivatives(space_dimension * 4);
@@ -132,17 +152,18 @@ std::vector<double> assemble(
             double result = 0.0;
             for (size_t k = 0; k < 4; k++)
             {
-                result += cell_basis_derivatives[4 * i + k] * value[k];
+                /// 此处算的是 mu*grad(u):grad(v)
+                result += 0.2 * cell_basis_derivatives[4 * i + k] * value[k];
             }
-            results[cell_dofmap[i]] += weight * result;
+            results[cell_dofmap[j]] += weight * result;
         }
     }
 }
 
-Cell find_cell(const Point &point, const FunctionSpace &function_space, const IBMesh &um)
+Cell find_cell(const Point &point, const IBMesh &um)
 {
     /// must be regular grid.
-    auto mesh = function_space.mesh();
+    auto mesh = um.mesh_ptr;
 
     auto index_1 = 2 * um.hash(point);
     auto index_2 = 2 * um.hash(point) + 1;
