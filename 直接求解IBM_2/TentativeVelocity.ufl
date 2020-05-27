@@ -1,0 +1,20 @@
+# Define function spaces (P2-P1)
+V = VectorElement("P", triangle, 2)
+Q = FiniteElement("P", triangle, 1)
+R = FiniteElement("Real", triangle, 0)
+
+# Define trial and test functions
+u = TrialFunction(V)
+v = TestFunction(V)
+
+# Define coefficients
+u_n = Coefficient(V)
+
+k = Coefficient(R)
+mu = 0.01
+
+# Define variational problem for step 1
+eq = dot((u - u_n) / k, v)*dx + dot(dot(u_n, nabla_grad(u_n)), v)*dx + mu*inner(grad(u), grad(v))*dx
+
+a  = lhs(eq)
+L  = rhs(eq)
