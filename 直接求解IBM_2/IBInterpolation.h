@@ -39,6 +39,8 @@ void calculate_values_at_gauss_points(
         cell->get_coordinate_dofs(coordinate_dofs);
 
         std::vector<double> basis_derivative_values(value_size * space_dimension * 2);
+        
+        auto cell_dofmap = dofmap->cell_dofs(cell->index());
 
         /// Compute quadrature rule for the cell.
         /// qr.second and qr.first are the coordinate and weight of gauss point respectively.
@@ -52,16 +54,18 @@ void calculate_values_at_gauss_points(
                 point.data(),
                 coordinate_dofs.data(),
                 ufc_cell.orientation);
-            auto cell_dofmap = dofmap->cell_dofs(cell->index());
             std::vector<double> derivative_value(derivative_value_size);
-            for (size_t i = 0; i < cell_dofmap.size(); i++)
+            for (size_t k = 0; k < cell_dofmap.size(); k++)
             {
                 for (size_t j = 0; j < derivative_value_size; j++)
                 {
                     derivative_value[j] +=
-                        (*displace.vector())[cell_dofmap[i]] *
-                        basis_derivative_values[derivative_value_size * i + j];
+                        (*displace.vector())[cell_dofmap[k]] *
+                        basis_derivative_values[derivative_value_size * k + j];
                 }
+            }
+            for (size_t k = 0; k < 4; k++){
+                std::cout<<derivative_value[k]<<std::endl;
             }
             values.push_back(derivative_value);
         }
@@ -124,8 +128,8 @@ void calculate_basis_derivative_values(
         ufc_cell.orientation);
 
     auto cell_dofmap_eigen = function_space.dofmap()->cell_dofs(cell.index());
-    /// store cell dof_map.
-    for (size_t i = 0; i < cell_dofmap_eigen.size(); i++)
+
+    for (size_t i = 0; i < cell_dofmap.size(); i++)
     {
         cell_dofmap[i] = cell_dofmap_eigen[i];
     }
@@ -143,6 +147,7 @@ std::vector<double> source_assemble(
 
     for (size_t i = 0; i < points.size(); i++)
     {
+        // std::cout<<points.size()<<std::endl;
         auto point = points[i];
         auto value = values[i];
         auto weight = weights[i];
@@ -151,7 +156,7 @@ std::vector<double> source_assemble(
 
         std::vector<size_t> cell_dofmap(space_dimension);
         std::vector<double> cell_basis_derivatives(space_dimension * 4);
-        // std::cout<<space_dimension<<std::endl;
+
         calculate_basis_derivative_values(function_space, cell, point, cell_dofmap, cell_basis_derivatives);
 
         for (size_t j = 0; j < cell_dofmap.size(); j++)
@@ -159,8 +164,7 @@ std::vector<double> source_assemble(
             double result = 0.0;
             for (size_t k = 0; k < 4; k++)
             {
-                /// 此处算的是 mu*grad(u):grad(v)
-                result += 0.2 * cell_basis_derivatives[4 * j + k] * value[k];
+                result += cell_basis_derivatives[4 * j + k] * value[k];
             }
             results[cell_dofmap[j]] += weight * result;
         }
