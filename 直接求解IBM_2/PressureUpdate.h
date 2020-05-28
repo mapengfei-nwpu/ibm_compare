@@ -7228,7 +7228,7 @@ public:
 
   const std::vector<bool> & enabled_coefficients() const final override
   {
-static const std::vector<bool> enabled({true, true, true});
+static const std::vector<bool> enabled({true, true});
 return enabled;
   }
 
@@ -7279,33 +7279,15 @@ return enabled;
     const double J_c3 = coordinate_dofs[1] * FE8_C0_D01_Q3[0][0][0] + coordinate_dofs[5] * FE8_C0_D01_Q3[0][0][1];
     const double J_c1 = coordinate_dofs[0] * FE8_C0_D01_Q3[0][0][0] + coordinate_dofs[4] * FE8_C0_D01_Q3[0][0][1];
     const double J_c2 = coordinate_dofs[1] * FE8_C0_D01_Q3[0][0][0] + coordinate_dofs[3] * FE8_C0_D01_Q3[0][0][1];
-    const double w0_d1 = w[0][0] * FE8_C0_D01_Q3[0][0][0] + w[0][2] * FE8_C0_D01_Q3[0][0][1];
-    double w0_d0 = 0.0;
-    for (int ic = 0; ic < 2; ++ic)
-        w0_d0 += w[0][ic] * FE8_C0_D01_Q3[0][0][ic];
-    alignas(32) double sp[22];
+    alignas(32) double sp[8];
     sp[0] = J_c0 * J_c3;
     sp[1] = J_c1 * J_c2;
     sp[2] = sp[0] + -1 * sp[1];
     sp[3] = J_c0 / sp[2];
     sp[4] = -1 * J_c1 / sp[2];
-    sp[5] = w0_d1 * sp[3];
-    sp[6] = w0_d0 * sp[4];
-    sp[7] = sp[5] + sp[6];
-    sp[8] = sp[7] * sp[3];
-    sp[9] = sp[7] * sp[4];
-    sp[10] = J_c3 / sp[2];
-    sp[11] = -1 * J_c2 / sp[2];
-    sp[12] = w0_d0 * sp[10];
-    sp[13] = w0_d1 * sp[11];
-    sp[14] = sp[12] + sp[13];
-    sp[15] = sp[14] * sp[11];
-    sp[16] = sp[14] * sp[10];
-    sp[17] = sp[8] + sp[15];
-    sp[18] = sp[16] + sp[9];
-    sp[19] = std::abs(sp[2]);
-    sp[20] = sp[17] * sp[19];
-    sp[21] = sp[18] * sp[19];
+    sp[5] = J_c3 / sp[2];
+    sp[6] = -1 * J_c2 / sp[2];
+    sp[7] = std::abs(sp[2]);
     alignas(32) double BF0[3] = {};
     for (int iq = 0; iq < 3; ++iq)
     {
@@ -7319,19 +7301,17 @@ return enabled;
         sv3[0] = w1_d1_c1 * sp[3];
         sv3[1] = w1_d0_c1 * sp[4];
         sv3[2] = sv3[0] + sv3[1];
-        sv3[3] = w1_d0_c0 * sp[10];
-        sv3[4] = w1_d1_c0 * sp[11];
+        sv3[3] = w1_d0_c0 * sp[5];
+        sv3[4] = w1_d1_c0 * sp[6];
         sv3[5] = sv3[3] + sv3[4];
         sv3[6] = sv3[2] + sv3[5];
-        sv3[7] = sv3[6] * (1 / w[2][0]);
-        sv3[8] = -1 * sv3[7] * sp[19];
+        sv3[7] = sv3[6] * (-1 * (1 / w[0][0]));
+        sv3[8] = sv3[7] * sp[7];
         const double fw0 = sv3[8] * weights3[iq];
         for (int i = 0; i < 3; ++i)
             BF0[i] += fw0 * FE8_C0_Q3[0][iq][i];
     }
-    A[0] = -0.5 * sp[21] + -0.5 * sp[20];
-    A[1] = 0.5 * sp[21];
-    A[2] = 0.5 * sp[20];
+    std::fill(A, A + 3, 0.0);
     for (int i = 0; i < 3; ++i)
         A[i] += BF0[i];
   }
@@ -7355,7 +7335,7 @@ public:
 
   const char * signature() const final override
   {
-    return "86329b4cbdad332b8038f8617938b32e5010e03a99140ab5864b0c8f818c14f421ccc0fe34894717f27c67585a1a581957937e9238a93283e057423bad3f4941";
+    return "ca9e769829da10586276dc8215b89d031b1cb9f17871781a48837ba142fbdfb42fbfe390c4b6f692389447e6f71f868bba1d29b84223cbe14805b6111dfbe504";
   }
 
   std::size_t rank() const final override
@@ -7594,7 +7574,7 @@ public:
 
   const char * signature() const final override
   {
-    return "54fb72a37917ca5dfd149c62a7e94a7919032130bf4c8cefc6316afadea354d4120846e25785dbae15006d719ffbe8f973e37995c95a0e3ae4d31171ed98d8f2";
+    return "07c8e4d3102e141aa101cc5b09f1096204a01394cf0df31a1f97dba00e71f812b1d59e9c7ab0cf2ccfcc34975104d17e03647f4b0cc77e09d5673cbc8b8a1a9a";
   }
 
   std::size_t rank() const final override
@@ -7604,16 +7584,16 @@ public:
 
   std::size_t num_coefficients() const final override
   {
-    return 3;
+    return 2;
   }
 
   std::size_t original_coefficient_position(std::size_t i) const final override
   {
-    if (i >= 3)
+    if (i >= 2)
     {
         throw std::runtime_error("Invalid original coefficient index.");
     }
-    static const std::vector<std::size_t> position = {0, 1, 2};
+    static const std::vector<std::size_t> position = {0, 1};
     return position[i];
   }
 
@@ -7639,11 +7619,9 @@ public:
     case 0:
         return new pressureupdate_finite_element_2();
     case 1:
-        return new pressureupdate_finite_element_2();
+        return new pressureupdate_finite_element_4();
     case 2:
         return new pressureupdate_finite_element_1();
-    case 3:
-        return new pressureupdate_finite_element_4();
     default:
         return nullptr;
     }
@@ -7656,11 +7634,9 @@ public:
     case 0:
         return new pressureupdate_dofmap_2();
     case 1:
-        return new pressureupdate_dofmap_2();
+        return new pressureupdate_dofmap_4();
     case 2:
         return new pressureupdate_dofmap_1();
-    case 3:
-        return new pressureupdate_dofmap_4();
     default:
         return nullptr;
     }
@@ -7877,36 +7853,12 @@ public:
 
 };
 
-class CoefficientSpace_p_n: public dolfin::FunctionSpace
+class CoefficientSpace_u1: public dolfin::FunctionSpace
 {
 public:
 
   // Constructor for standard function space
-  CoefficientSpace_p_n(std::shared_ptr<const dolfin::Mesh> mesh):
-    dolfin::FunctionSpace(mesh,
-                          std::make_shared<const dolfin::FiniteElement>(std::make_shared<pressureupdate_finite_element_2>()),
-                          std::make_shared<const dolfin::DofMap>(std::make_shared<pressureupdate_dofmap_2>(), *mesh))
-  {
-    // Do nothing
-  }
-
-  // Constructor for constrained function space
-  CoefficientSpace_p_n(std::shared_ptr<const dolfin::Mesh> mesh, std::shared_ptr<const dolfin::SubDomain> constrained_domain):
-    dolfin::FunctionSpace(mesh,
-                          std::make_shared<const dolfin::FiniteElement>(std::make_shared<pressureupdate_finite_element_2>()),
-                          std::make_shared<const dolfin::DofMap>(std::make_shared<pressureupdate_dofmap_2>(), *mesh, constrained_domain))
-  {
-    // Do nothing
-  }
-
-};
-
-class CoefficientSpace_u_: public dolfin::FunctionSpace
-{
-public:
-
-  // Constructor for standard function space
-  CoefficientSpace_u_(std::shared_ptr<const dolfin::Mesh> mesh):
+  CoefficientSpace_u1(std::shared_ptr<const dolfin::Mesh> mesh):
     dolfin::FunctionSpace(mesh,
                           std::make_shared<const dolfin::FiniteElement>(std::make_shared<pressureupdate_finite_element_1>()),
                           std::make_shared<const dolfin::DofMap>(std::make_shared<pressureupdate_dofmap_1>(), *mesh))
@@ -7915,7 +7867,7 @@ public:
   }
 
   // Constructor for constrained function space
-  CoefficientSpace_u_(std::shared_ptr<const dolfin::Mesh> mesh, std::shared_ptr<const dolfin::SubDomain> constrained_domain):
+  CoefficientSpace_u1(std::shared_ptr<const dolfin::Mesh> mesh, std::shared_ptr<const dolfin::SubDomain> constrained_domain):
     dolfin::FunctionSpace(mesh,
                           std::make_shared<const dolfin::FiniteElement>(std::make_shared<pressureupdate_finite_element_1>()),
                           std::make_shared<const dolfin::DofMap>(std::make_shared<pressureupdate_dofmap_1>(), *mesh, constrained_domain))
@@ -8160,11 +8112,9 @@ public:
 
 };
 
-typedef CoefficientSpace_p_n Form_L_FunctionSpace_1;
+typedef CoefficientSpace_k Form_L_FunctionSpace_1;
 
-typedef CoefficientSpace_u_ Form_L_FunctionSpace_2;
-
-typedef CoefficientSpace_k Form_L_FunctionSpace_3;
+typedef CoefficientSpace_u1 Form_L_FunctionSpace_2;
 
 class Form_L: public dolfin::Form
 {
@@ -8172,7 +8122,7 @@ public:
 
   // Constructor
   Form_L(std::shared_ptr<const dolfin::FunctionSpace> V0):
-    dolfin::Form(1, 3), p_n(*this, 0), u_(*this, 1), k(*this, 2)
+    dolfin::Form(1, 2), k(*this, 0), u1(*this, 1)
   {
     _function_spaces[0] = V0;
 
@@ -8180,14 +8130,13 @@ public:
   }
 
   // Constructor
-  Form_L(std::shared_ptr<const dolfin::FunctionSpace> V0, std::shared_ptr<const dolfin::GenericFunction> p_n, std::shared_ptr<const dolfin::GenericFunction> u_, std::shared_ptr<const dolfin::GenericFunction> k):
-    dolfin::Form(1, 3), p_n(*this, 0), u_(*this, 1), k(*this, 2)
+  Form_L(std::shared_ptr<const dolfin::FunctionSpace> V0, std::shared_ptr<const dolfin::GenericFunction> k, std::shared_ptr<const dolfin::GenericFunction> u1):
+    dolfin::Form(1, 2), k(*this, 0), u1(*this, 1)
   {
     _function_spaces[0] = V0;
 
-    this->p_n = p_n;
-    this->u_ = u_;
     this->k = k;
+    this->u1 = u1;
 
     _ufc_form = std::make_shared<const pressureupdate_form_1>();
   }
@@ -8199,12 +8148,10 @@ public:
   /// Return the number of the coefficient with this name
   virtual std::size_t coefficient_number(const std::string& name) const
   {
-    if (name == "p_n")
+    if (name == "k")
       return 0;
-    else if (name == "u_")
+    else if (name == "u1")
       return 1;
-    else if (name == "k")
-      return 2;
 
     dolfin::dolfin_error("generated code for class Form",
                          "access coefficient data",
@@ -8218,11 +8165,9 @@ public:
     switch (i)
     {
     case 0:
-      return "p_n";
-    case 1:
-      return "u_";
-    case 2:
       return "k";
+    case 1:
+      return "u1";
     }
 
     dolfin::dolfin_error("generated code for class Form",
@@ -8234,14 +8179,12 @@ public:
   // Typedefs
   typedef Form_L_FunctionSpace_0 TestSpace;
   typedef Form_L_MultiMeshFunctionSpace_0 MultiMeshTestSpace;
-  typedef Form_L_FunctionSpace_1 CoefficientSpace_p_n;
-  typedef Form_L_FunctionSpace_2 CoefficientSpace_u_;
-  typedef Form_L_FunctionSpace_3 CoefficientSpace_k;
+  typedef Form_L_FunctionSpace_1 CoefficientSpace_k;
+  typedef Form_L_FunctionSpace_2 CoefficientSpace_u1;
 
   // Coefficients
-  dolfin::CoefficientAssigner p_n;
-  dolfin::CoefficientAssigner u_;
   dolfin::CoefficientAssigner k;
+  dolfin::CoefficientAssigner u1;
 };
 
 class MultiMeshForm_L: public dolfin::MultiMeshForm
@@ -8250,7 +8193,7 @@ public:
 
   // Constructor
   MultiMeshForm_L(std::shared_ptr<const dolfin::MultiMeshFunctionSpace> V0):
-    dolfin::MultiMeshForm(V0), p_n(*this, 0), u_(*this, 1), k(*this, 2)
+    dolfin::MultiMeshForm(V0), k(*this, 0), u1(*this, 1)
   {
     // Create and add standard forms
     std::size_t num_parts = V0->num_parts(); // assume all equal and pick first
@@ -8268,8 +8211,8 @@ public:
   }
 
   // Constructor
-  MultiMeshForm_L(std::shared_ptr<const dolfin::MultiMeshFunctionSpace> V0, std::shared_ptr<const dolfin::GenericFunction> p_n, std::shared_ptr<const dolfin::GenericFunction> u_, std::shared_ptr<const dolfin::GenericFunction> k):
-    dolfin::MultiMeshForm(V0), p_n(*this, 0), u_(*this, 1), k(*this, 2)
+  MultiMeshForm_L(std::shared_ptr<const dolfin::MultiMeshFunctionSpace> V0, std::shared_ptr<const dolfin::GenericFunction> k, std::shared_ptr<const dolfin::GenericFunction> u1):
+    dolfin::MultiMeshForm(V0), k(*this, 0), u1(*this, 1)
   {
     // Create and add standard forms
     std::size_t num_parts = V0->num_parts(); // assume all equal and pick first
@@ -8283,9 +8226,8 @@ public:
     build();
 
     /// Assign coefficients
-    this->p_n = p_n;
-    this->u_ = u_;
     this->k = k;
+    this->u1 = u1;
 
   }
 
@@ -8296,12 +8238,10 @@ public:
   /// Return the number of the coefficient with this name
   virtual std::size_t coefficient_number(const std::string& name) const
   {
-    if (name == "p_n")
+    if (name == "k")
       return 0;
-    else if (name == "u_")
+    else if (name == "u1")
       return 1;
-    else if (name == "k")
-      return 2;
 
     dolfin::dolfin_error("generated code for class Form",
                          "access coefficient data",
@@ -8315,11 +8255,9 @@ public:
     switch (i)
     {
     case 0:
-      return "p_n";
-    case 1:
-      return "u_";
-    case 2:
       return "k";
+    case 1:
+      return "u1";
     }
 
     dolfin::dolfin_error("generated code for class Form",
@@ -8331,14 +8269,12 @@ public:
   // Typedefs
   typedef Form_L_FunctionSpace_0 TestSpace;
   typedef Form_L_MultiMeshFunctionSpace_0 MultiMeshTestSpace;
-  typedef Form_L_FunctionSpace_1 CoefficientSpace_p_n;
-  typedef Form_L_FunctionSpace_2 CoefficientSpace_u_;
-  typedef Form_L_FunctionSpace_3 CoefficientSpace_k;
+  typedef Form_L_FunctionSpace_1 CoefficientSpace_k;
+  typedef Form_L_FunctionSpace_2 CoefficientSpace_u1;
 
   // Coefficients
-  dolfin::MultiMeshCoefficientAssigner p_n;
-  dolfin::MultiMeshCoefficientAssigner u_;
   dolfin::MultiMeshCoefficientAssigner k;
+  dolfin::MultiMeshCoefficientAssigner u1;
 };
 
 // Class typedefs

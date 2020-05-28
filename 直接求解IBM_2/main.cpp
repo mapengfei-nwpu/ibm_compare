@@ -104,17 +104,18 @@ int main()
     DirichletBC noslip(V, zero_vector, noslip_domain);
     DirichletBC inflow(V, v_in, inflow_domain);
     DirichletBC pinpoint(Q, zero, pinpoint_domain, "pointwise");
-    std::vector<DirichletBC *> bcu = {{&inflow, &noslip}};
-    std::vector<DirichletBC *> bcp = {{&pinpoint}};
+    std::vector<DirichletBC*> bcu = {{&inflow, &noslip}};
+    std::vector<DirichletBC*> bcp = {&pinpoint};
 
     // Create functions
-    auto u_ = std::make_shared<Function>(V);
-    auto u_n = std::make_shared<Function>(V);
-    auto p_ = std::make_shared<Function>(Q);
-    auto p_n = std::make_shared<Function>(Q);
-
+    auto u0 = std::make_shared<Function>(V);
+    auto u1 = std::make_shared<Function>(V);
+    auto p0 = std::make_shared<Function>(Q);
+    auto p1 = std::make_shared<Function>(Q);
+    
     // Create coefficients
     auto k = std::make_shared<Constant>(dt);
+    auto f = std::make_shared<Constant>(0, 0);
 
     // Create forms
     TentativeVelocity::BilinearForm a1(V, V);
@@ -127,17 +128,15 @@ int main()
     // Set coefficients
     a1.k = k;
     L1.k = k;
-    L1.u_n = u_n;
+    L1.u0 = u0;
+    L1.f = f;
 
     L2.k = k;
-    L2.u_ = u_;
-    L2.p_n = p_n;
+    L2.u1 = u1;
 
     L3.k = k;
-    L3.u_ = u_;
-    L3.p_ = p_;
-    L3.p_n = p_n;
-
+    L3.u1 = u1;
+    L3.p1 = p1;
 
     // Assemble matrices
     Matrix A1, A2, A3;
@@ -147,6 +146,9 @@ int main()
 
     // Create vectors
     Vector b1, b2, b3;
+
+  // Use amg preconditioner if available
+  const std::string prec(has_krylov_solver_preconditioner("amg") ? "amg" : "default");
 
     // Create files for storing solution
     File ufile("results/velocity.pvd");
@@ -167,7 +169,7 @@ int main()
             b1.setitem(i, b1.getitem(i) + force[i]);
         for (std::size_t i = 0; i < bcu.size(); i++)
             bcu[i]->apply(A1, b1);
-        solve(A1, *u_->vector(), b1, "bicgstab", "hypre_amg");
+        solve(A1, *u1->vector(), b1, "gmres", "default");
         end();
 
         // Pressure correction
@@ -176,9 +178,9 @@ int main()
         for (std::size_t i = 0; i < bcp.size(); i++)
         {
             bcp[i]->apply(A2, b2);
-            bcp[i]->apply(*p_->vector());
+            bcp[i]->apply(*p1->vector());
         }
-        solve(A2, *p_->vector(), b2, "bicgstab", "hypre_amg");
+        solve(A2, *p1->vector(), b2, "bicgstab", prec);
         end();
 
         // Velocity correction
@@ -186,7 +188,7 @@ int main()
         assemble(b3, L3);
         for (std::size_t i = 0; i < bcu.size(); i++)
             bcu[i]->apply(A3, b3);
-        solve(A3, *u_->vector(), b3, "cg", "sor");
+        solve(A3, *u1->vector(), b3, "gmres", "default");
         end();
 
         // force calculation
@@ -195,7 +197,7 @@ int main()
 
         /// 1. 移动到实时坐标，进行速度插值
         my_move(*circle, *body_disp);
-        body_velocity->interpolate(*u_);
+        body_velocity->interpolate(*u1);
         *temp_disp = FunctionAXPY(body_disp, -1.0);
         bfile << *body_disp;
         my_move(*circle, *temp_disp);
@@ -217,16 +219,16 @@ int main()
         calculate_values_at_gauss_points(*body_disp, values);
 
         /// 5. 组装 \int mu*F:grad(v) dx
-        force = source_assemble(points, values, weights, *(u_->function_space()), ba);
+        force = source_assemble(points, values, weights, *(u1->function_space()), ba);
         end();
 
         // Save to file
-        ufile << *u_;
-        pfile << *p_;
+        ufile << *u1;
+        pfile << *p1;
 
         // Move to next time step
-        *u_n = *u_;
-        *p_n = *p_;
+        *u0 = *u1;
+        *p0 = *p1;
         t += dt;
         cout << "t = " << t << endl;
     }
