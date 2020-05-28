@@ -5,7 +5,7 @@
 #include "TentativeVelocity.h"
 #include "PressureUpdate.h"
 #include "VelocityUpdate.h"
-#include "ElasticStructure.h"
+#include "Poisson.h"
 
 using namespace dolfin;
 
@@ -24,6 +24,15 @@ class InflowDomain : public SubDomain
     bool inside(const Array<double> &x, bool on_boundary) const
     {
         return near(x[1], 1);
+    }
+};
+
+// Define inflow domain
+class Pinpoint : public SubDomain
+{
+    bool inside(const Array<double> &x, bool on_boundary) const
+    {
+        return near(x[1], 0) && near(x[0], 0);
     }
 };
 
@@ -66,13 +75,11 @@ int main()
     Point point0(0, 0, 0);
     Point point1(1.0, 1.0, 0);
     IBMesh ba({point0, point1}, {nnn, nnn});
-    DeltaInterplation interpolation(ba);
 
     // Create circle mesh
     auto circle = std::make_shared<Mesh>("./circle.xml.gz");
-    auto U = std::make_shared<ElasticStructure::FunctionSpace>(circle);
+    auto U = std::make_shared<Poisson::FunctionSpace>(circle);
     auto body_velocity = std::make_shared<Function>(U);
-    auto body_force = std::make_shared<Function>(U);
     auto body_disp = std::make_shared<Function>(U);
 
     // Create function spaces
@@ -91,12 +98,14 @@ int main()
     // Define subdomains for boundary conditions
     auto noslip_domain = std::make_shared<NoslipDomain>();
     auto inflow_domain = std::make_shared<InflowDomain>();
+    auto pinpoint_domain = std::make_shared<Pinpoint>();
 
     // Define boundary conditions
     DirichletBC noslip(V, zero_vector, noslip_domain);
     DirichletBC inflow(V, v_in, inflow_domain);
+    DirichletBC pinpoint(Q, zero, pinpoint_domain, "pointwise");
     std::vector<DirichletBC *> bcu = {{&inflow, &noslip}};
-    std::vector<DirichletBC *> bcp = {};
+    std::vector<DirichletBC *> bcp = {{&pinpoint}};
 
     // Create functions
     auto u_ = std::make_shared<Function>(V);
@@ -106,7 +115,6 @@ int main()
 
     // Create coefficients
     auto k = std::make_shared<Constant>(dt);
-    auto f = std::make_shared<Function>(V);
 
     // Create forms
     TentativeVelocity::BilinearForm a1(V, V);
@@ -115,8 +123,6 @@ int main()
     PressureUpdate::LinearForm L2(Q);
     VelocityUpdate::BilinearForm a3(V, V);
     VelocityUpdate::LinearForm L3(V);
-    ElasticStructure::BilinearForm a4(U, U);
-    ElasticStructure::LinearForm L4(U);
 
     // Set coefficients
     a1.k = k;
@@ -132,22 +138,19 @@ int main()
     L3.p_ = p_;
     L3.p_n = p_n;
 
-    L4.u = body_disp;
 
     // Assemble matrices
-    Matrix A1, A2, A3, A4;
+    Matrix A1, A2, A3;
     assemble(A1, a1);
     assemble(A2, a2);
     assemble(A3, a3);
-    assemble(A4, a4);
 
     // Create vectors
-    Vector b1, b2, b3, b4;
+    Vector b1, b2, b3;
 
     // Create files for storing solution
     File ufile("results/velocity.pvd");
     File pfile("results/pressure.pvd");
-    File ffile("results/force.pvd");
     File bfile("results/body.pvd");
 
     // Time-stepping
@@ -159,6 +162,7 @@ int main()
         begin("Computing tentative velocity");
         assemble(b1, L1);
         std::cout << b1.size() << std::endl;
+        /// apply the source term.
         for (size_t i = 0; i < b1.size(); i++)
             b1.setitem(i, b1.getitem(i) + force[i]);
         for (std::size_t i = 0; i < bcu.size(); i++)
@@ -189,30 +193,36 @@ int main()
         begin("Computing elastic force");
         auto temp_disp = std::make_shared<Function>(U);
 
-        /// 1. 计算高斯点
-        /// 2. 进行速度插值
+        /// 1. 移动到实时坐标，进行速度插值
         my_move(*circle, *body_disp);
         body_velocity->interpolate(*u_);
-        std::vector<std::vector<double>> &points,
-        std::vector<double> weights)
+        *temp_disp = FunctionAXPY(body_disp, -1.0);
+        bfile << *body_disp;
+        my_move(*circle, *temp_disp);
+
+        /// 2. 更新速度
+        *temp_disp = FunctionAXPY(body_velocity, dt) + body_disp;
+        *body_disp = *temp_disp;
+
+        /// 3. 计算出实时坐标下的高斯点和高斯权重
+        my_move(*circle, *body_disp);
+        std::vector<std::vector<double>> points;
+        std::vector<double> weights;
+        calculate_gauss_points_and_weights(*body_disp,points, weights);
         *temp_disp = FunctionAXPY(body_disp, -1.0);
         my_move(*circle, *temp_disp);
 
-        /// 3. 计算高斯点
-        /// 4. 求出高斯点的应力张量
-        *temp_disp = FunctionAXPY(body_velocity, dt) + body_disp;
-        *body_disp = *temp_disp;
-        std::vector<double> values;
-        calculate_values_at_gauss_points(*body_disp, vaules);
+        /// 4. 求出参考坐标系下的 F = grad(disp)
+        std::vector<std::vector<double>> values;
+        calculate_values_at_gauss_points(*body_disp, values);
 
-        /// 5. 组装源项
-        force = source_assemble(points, values, weights, function_space, ba);
+        /// 5. 组装 \int mu*F:grad(v) dx
+        force = source_assemble(points, values, weights, *(u_->function_space()), ba);
         end();
 
         // Save to file
         ufile << *u_;
         pfile << *p_;
-        ffile << *f;
 
         // Move to next time step
         *u_n = *u_;

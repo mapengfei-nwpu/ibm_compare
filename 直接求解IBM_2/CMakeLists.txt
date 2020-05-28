@@ -30,9 +30,9 @@ CHECK_CXX_COMPILER_FLAG("-Wno-comment" HAVE_NO_MULTLINE)
 if (HAVE_NO_MULTLINE)
   set(CMAKE_CXX_FLAGS "-Wno-comment ${CMAKE_CXX_FLAGS}")
 endif()
-
+add_definitions("-Wall -g")
 # Executable
-add_executable(${PROJECT_NAME} test_gauss_derivative.cpp)
+add_executable(${PROJECT_NAME} main.cpp)
 
 # Target libraries
 target_link_libraries(${PROJECT_NAME} dolfin)

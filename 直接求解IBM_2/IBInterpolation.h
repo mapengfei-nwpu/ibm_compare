@@ -3,6 +3,19 @@
 #include <numeric>
 using namespace dolfin;
 /// calculate derivatives at gauss point.
+Cell find_cell(const Point &point, const IBMesh &um)
+{
+    /// must be regular grid.
+    auto mesh = um.mesh_ptr;
+
+    auto index_1 = 2 * um.hash(point);
+    auto index_2 = 2 * um.hash(point) + 1;
+    Cell cell_1(*mesh, index_1);
+    Cell cell_2(*mesh, index_2);
+
+    return cell_1.contains(point) ? cell_1 : cell_2;
+}
+
 void calculate_values_at_gauss_points(
     const Function &displace,
     std::vector<std::vector<double>> &values)
@@ -58,7 +71,7 @@ void calculate_values_at_gauss_points(
 void calculate_gauss_points_and_weights(
     const Function &displace,
     std::vector<std::vector<double>> &points,
-    std::vector<double> weights)
+    std::vector<double> &weights)
 {
     // Construct Gauss quadrature rules
     // dimension 2 and order 9
@@ -67,14 +80,6 @@ void calculate_gauss_points_and_weights(
 
     for (CellIterator cell(*mesh); !cell.end(); ++cell)
     {
-        ufc::cell ufc_cell;
-        cell->get_cell_data(ufc_cell);
-
-        std::vector<double> coordinate_dofs;
-        cell->get_coordinate_dofs(coordinate_dofs);
-
-        std::vector<double> basis_derivative_values(value_size * space_dimension * 2);
-
         /// Compute quadrature rule for the cell.
         /// qr.second and qr.first are the coordinate and weight of gauss point respectively.
         auto qr = gq.compute_quadrature_rule(*cell);
@@ -82,7 +87,7 @@ void calculate_gauss_points_and_weights(
         {
             std::vector<double> point({qr.first[2 * i], qr.first[2 * i + 1]});
             points.push_back(point);
-            weights.push_back(qr.second);
+            weights.push_back(qr.second[i]);
         }
     }
 }
@@ -119,9 +124,6 @@ void calculate_basis_derivative_values(
         ufc_cell.orientation);
 
     auto cell_dofmap_eigen = function_space.dofmap()->cell_dofs(cell.index());
-
-    std::vector<size_t> cell_dofmap;
-
     /// store cell dof_map.
     for (size_t i = 0; i < cell_dofmap_eigen.size(); i++)
     {
@@ -130,21 +132,26 @@ void calculate_basis_derivative_values(
 }
 
 std::vector<double> source_assemble(
-    std::vector<std::vector<double>> points,
-    std::vector<std::vector<double>> values,
-    std::vector<double> weights,
+    std::vector<std::vector<double>> &points,
+    std::vector<std::vector<double>> &values,
+    std::vector<double> &weights,
     const FunctionSpace &function_space,
     const IBMesh &um)
 {
+    std::vector<double> results(function_space.dim());
+    auto space_dimension = function_space.element()->space_dimension();
+
     for (size_t i = 0; i < points.size(); i++)
     {
         auto point = points[i];
         auto value = values[i];
         auto weight = weights[i];
-        auto cell = find_cell(point, um);
+        Point point_temp(point[0],point[1]);
+        auto cell = find_cell(point_temp, um);
 
         std::vector<size_t> cell_dofmap(space_dimension);
         std::vector<double> cell_basis_derivatives(space_dimension * 4);
+        // std::cout<<space_dimension<<std::endl;
         calculate_basis_derivative_values(function_space, cell, point, cell_dofmap, cell_basis_derivatives);
 
         for (size_t j = 0; j < cell_dofmap.size(); j++)
@@ -153,22 +160,11 @@ std::vector<double> source_assemble(
             for (size_t k = 0; k < 4; k++)
             {
                 /// 此处算的是 mu*grad(u):grad(v)
-                result += 0.2 * cell_basis_derivatives[4 * i + k] * value[k];
+                result += 0.2 * cell_basis_derivatives[4 * j + k] * value[k];
             }
             results[cell_dofmap[j]] += weight * result;
         }
     }
+    return results;
 }
 
-Cell find_cell(const Point &point, const IBMesh &um)
-{
-    /// must be regular grid.
-    auto mesh = um.mesh_ptr;
-
-    auto index_1 = 2 * um.hash(point);
-    auto index_2 = 2 * um.hash(point) + 1;
-    Cell cell_1(*mesh, index_1);
-    Cell cell_2(*mesh, index_2);
-
-    return cell_1.contains(point) ? cell_1 : cell_2;
-}

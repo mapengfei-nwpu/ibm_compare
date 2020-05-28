@@ -93,7 +93,7 @@ public:
 		}
 	}
 
-	size_t hash(dolfin::Point point)
+	size_t hash(const dolfin::Point &point) const
 	{
 		if (top_dim != 2 && top_dim != 3)
 			dolfin_error("the size of dims must be 2 and 3.", ".", ".");
