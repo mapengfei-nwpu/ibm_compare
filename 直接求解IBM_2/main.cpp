@@ -195,30 +195,23 @@ int main()
         begin("Computing elastic force");
         auto temp_disp = std::make_shared<Function>(U);
 
-        /// 1. 移动到实时坐标，进行速度插值
-        my_move(*circle, *body_disp);
+        /// 1. 进行速度插值
         body_velocity->interpolate(*u1);
-        *temp_disp = FunctionAXPY(body_disp, -1.0);
-        bfile << *body_disp;
-        my_move(*circle, *temp_disp);
 
-        /// 2. 更新速度
+        /// 2. 更新坐标
         *temp_disp = FunctionAXPY(body_velocity, dt) + body_disp;
         *body_disp = *temp_disp;
 
-        /// 3. 计算出实时坐标下的高斯点和高斯权重
+        /// 3. 移动网格
         my_move(*circle, *body_disp);
+
+        /// 4. 计算出实时坐标下的高斯点、高斯权重、高斯点上的 P = mu*F*F^{T}
         std::vector<std::vector<double>> points;
         std::vector<double> weights;
-        calculate_gauss_points_and_weights(*body_disp,points, weights);
-        *temp_disp = FunctionAXPY(body_disp, -1.0);
-        my_move(*circle, *temp_disp);
-
-        /// 4. 求出参考坐标系下的 F = grad(disp)
         std::vector<std::vector<double>> values;
-        calculate_values_at_gauss_points(*body_disp, values);
+        calculate_gauss_points_and_weights(*body_disp, points, weights);
 
-        /// 5. 组装 \int mu*F:grad(v) dx
+        /// 5. 组装 \int mu*FF^{T}:grad(v) dx
         force = source_assemble(points, values, weights, *(u1->function_space()), ba);
         end();
 
