@@ -18,7 +18,7 @@ Cell find_cell(const Point &point, const IBMesh &um)
 
 void calculate_values_at_gauss_points(
     const Function &displace,
-    std::vector<double> &weights),
+    std::vector<double> &weights,
     std::vector<std::vector<double>> &points,
     std::vector<std::vector<double>> &values)
 {
@@ -57,7 +57,7 @@ void calculate_values_at_gauss_points(
                 coordinate_dofs.data(),
                 ufc_cell.orientation);
             std::vector<double> derivative_value(derivative_value_size);
-            for (size_t k = 0; k < cell_dofmap.size(); k++)
+            for (size_t k = 0; k < static_cast<size_t>(cell_dofmap.size()); k++)
             {
                 for (size_t j = 0; j < derivative_value_size; j++)
                 {
@@ -66,16 +66,21 @@ void calculate_values_at_gauss_points(
                         basis_derivative_values[derivative_value_size * k + j];
                 }
             }
+            
+
             {
                 double a = derivative_value[0];
                 double b = derivative_value[1];
                 double c = derivative_value[2];
                 double d = derivative_value[3];
+                
                 double det = 1.0/(a*d-b*c);
                 derivative_value[0] =  (b*b+d*d)/(det*det);
-                derivative_value[1] = -(c*d+a*b)/(det*det);
+                derivative_value[3] = -(c*d+a*b)/(det*det);
                 derivative_value[2] = -(c*d+a*b)/(det*det);
-                derivative_value[3] =  (a*a+c*c)/(det*det);
+                derivative_value[1] =  (a*a+c*c)/(det*det);
+
+                /// std::cout << derivative_value[0] << ", " << derivative_value[1] << ", " << derivative_value[2] << ", " << derivative_value[3] <<std::endl;
             }
             weights.push_back(qr.second[i]);
             points.push_back(point);
@@ -99,7 +104,6 @@ void calculate_basis_derivative_values(
 {
     /// std::vector<size_t> &cell_dofmap 和 std::vector<double> &cell_basis_derivatives
     /// 需要在调用这个函数之前分配好空间。
-    auto element = function_space.element();
 
     ufc::cell ufc_cell;
     cell.get_cell_data(ufc_cell);
@@ -108,25 +112,25 @@ void calculate_basis_derivative_values(
     cell.get_coordinate_dofs(coordinate_dofs);
 
     /// store values derivative basis.
+    auto element = function_space.element();
     element->evaluate_basis_derivatives_all(
         1,
         cell_basis_derivatives.data(),
         point.data(),
         coordinate_dofs.data(),
         ufc_cell.orientation);
-
     auto cell_dofmap_eigen = function_space.dofmap()->cell_dofs(cell.index());
 
     for (size_t i = 0; i < cell_dofmap.size(); i++)
     {
-        cell_dofmap[i] = cell_dofmap_eigen[i];
+        cell_dofmap[i]  = cell_dofmap_eigen[i];
     }
 }
 
 std::vector<double> source_assemble(
-    std::vector<std::vector<double>> &points,
-    std::vector<std::vector<double>> &values,
-    std::vector<double> &weights,
+    const std::vector<std::vector<double>> &points,
+    const std::vector<std::vector<double>> &values,
+    const std::vector<double> &weights,
     const FunctionSpace &function_space,
     const IBMesh &um)
 {
@@ -139,8 +143,17 @@ std::vector<double> source_assemble(
         auto point = points[i];
         auto value = values[i];
         auto weight = weights[i];
-        Point point_temp(point[0],point[1]);
+
+        Point point_temp(2, point.data());
         auto cell = find_cell(point_temp, um);
+        /// std::cout<<point_temp<<std::endl;
+        /// std::vector<double> cell_coordinates;
+        /// cell.get_vertex_coordinates(cell_coordinates);
+        /// for (size_t j = 0; j < cell_coordinates.size(); j++)
+        /// {
+        ///    std::cout << cell_coordinates[j] << std::endl;
+        /// }
+        
 
         std::vector<size_t> cell_dofmap(space_dimension);
         std::vector<double> cell_basis_derivatives(space_dimension * 4);
@@ -152,7 +165,7 @@ std::vector<double> source_assemble(
             double result = 0.0;
             for (size_t k = 0; k < 4; k++)
             {
-                result += cell_basis_derivatives[4 * j + k] * value[k];
+                result += 0.2*cell_basis_derivatives[4*j + k] * value[k];
             }
             results[cell_dofmap[j]] += weight * result;
         }

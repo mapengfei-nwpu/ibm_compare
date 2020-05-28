@@ -50,6 +50,19 @@ public:
         values[1] = 0.0;
     }
 };
+class Position : public Expression
+{
+public:
+    // Constructor
+    Position() : Expression(2) {}
+
+    // Evaluate pressure at inflow
+    void eval(Array<double> &values, const Array<double> &x) const
+    {
+        values[0] = x[0];
+        values[1] = x[1];
+    }
+};
 
 void my_move(Mesh &mesh, Function &displacement)
 {
@@ -63,7 +76,7 @@ void my_move(Mesh &mesh, Function &displacement)
     for (std::size_t i = 0; i < N; i++)
     {
         for (std::size_t j = 0; j < 2; j++)
-            x[j] = geometry.x(i, j) + vertex_values[j * N + i];
+            x[j] = vertex_values[j * N + i];
         geometry.set(i, x.data());
     }
 }
@@ -71,7 +84,7 @@ void my_move(Mesh &mesh, Function &displacement)
 int main()
 {
     // Create chanel mesh
-    size_t nnn = 128;
+    size_t nnn = 32;
     Point point0(0, 0, 0);
     Point point1(1.0, 1.0, 0);
     IBMesh ba({point0, point1}, {nnn, nnn});
@@ -81,6 +94,9 @@ int main()
     auto U = std::make_shared<Poisson::FunctionSpace>(circle);
     auto body_velocity = std::make_shared<Function>(U);
     auto body_disp = std::make_shared<Function>(U);
+
+    auto position = std::make_shared<Position>();
+    body_disp->interpolate(*position);
 
     // Create function spaces
     auto V = std::make_shared<VelocityUpdate::FunctionSpace>(ba.mesh());
@@ -163,10 +179,11 @@ int main()
         // Compute tentative velocity step
         begin("Computing tentative velocity");
         assemble(b1, L1);
-        std::cout << b1.size() << std::endl;
         /// apply the source term.
+        
         for (size_t i = 0; i < b1.size(); i++)
-            b1.setitem(i, b1.getitem(i) + force[i]);
+            b1.setitem(i, b1.getitem(i) - force[i]);
+        
         for (std::size_t i = 0; i < bcu.size(); i++)
             bcu[i]->apply(A1, b1);
         solve(A1, *u1->vector(), b1, "gmres", "default");
@@ -206,18 +223,49 @@ int main()
         my_move(*circle, *body_disp);
 
         /// 4. 计算出实时坐标下的高斯点、高斯权重、高斯点上的 P = mu*F*F^{T}
-        std::vector<std::vector<double>> points;
-        std::vector<double> weights;
-        std::vector<std::vector<double>> values;
-        calculate_gauss_points_and_weights(*body_disp, points, weights);
+        std::vector<double> weights; /// shape = (1,)
+        std::vector<std::vector<double>> points; /// shape = (2,)
+        std::vector<std::vector<double>> values; /// shape = (2,2)
+        calculate_values_at_gauss_points(*body_disp, weights, points, values);
+
+        /*
+        for (size_t i = 0; i < weights.size(); i++)
+        {
+            std::cout<< points[i].size()*points[i].size() << ", "<< values[i].size() <<  std::endl;
+        }
+        */
+
+        /*
+        std::cout<< values.size() <<std::endl;
+        for (size_t i = 0; i < values.size(); i++)
+        {
+            std::cout<< values[i].size() <<std::endl;
+            for (size_t j = 0; j < values[i].size(); j++)
+            {
+                std::cout<< values[i][j] <<std::endl;
+            }
+            
+        }*/
+        
 
         /// 5. 组装 \int mu*FF^{T}:grad(v) dx
         force = source_assemble(points, values, weights, *(u1->function_space()), ba);
+        /*
+        double force_max = 0.0;
+        for (size_t i = 0; i < force.size(); i++)
+        {
+            force_max = force_max > force[i] ? force_max : force[i];
+        }
+        std::cout<<"force_max: "<< force_max << std::endl;
+        
+        std::cout << force.size() <<std::endl;
         end();
-
+        */
+       
         // Save to file
         ufile << *u1;
         pfile << *p1;
+        bfile << *body_disp;
 
         // Move to next time step
         *u0 = *u1;
