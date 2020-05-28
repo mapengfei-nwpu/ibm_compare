@@ -18,6 +18,8 @@ Cell find_cell(const Point &point, const IBMesh &um)
 
 void calculate_values_at_gauss_points(
     const Function &displace,
+    std::vector<double> &weights),
+    std::vector<std::vector<double>> &points,
     std::vector<std::vector<double>> &values)
 {
     // Construct Gauss quadrature rules
@@ -64,34 +66,20 @@ void calculate_values_at_gauss_points(
                         basis_derivative_values[derivative_value_size * k + j];
                 }
             }
-            for (size_t k = 0; k < 4; k++){
-                std::cout<<derivative_value[k]<<std::endl;
+            {
+                double a = derivative_value[0];
+                double b = derivative_value[1];
+                double c = derivative_value[2];
+                double d = derivative_value[3];
+                double det = 1.0/(a*d-b*c);
+                derivative_value[0] =  (b*b+d*d)/(det*det);
+                derivative_value[1] = -(c*d+a*b)/(det*det);
+                derivative_value[2] = -(c*d+a*b)/(det*det);
+                derivative_value[3] =  (a*a+c*c)/(det*det);
             }
-            values.push_back(derivative_value);
-        }
-    }
-}
-
-void calculate_gauss_points_and_weights(
-    const Function &displace,
-    std::vector<std::vector<double>> &points,
-    std::vector<double> &weights)
-{
-    // Construct Gauss quadrature rules
-    // dimension 2 and order 9
-    SimplexQuadrature gq(2, 9);
-    auto mesh = displace.function_space()->mesh();
-
-    for (CellIterator cell(*mesh); !cell.end(); ++cell)
-    {
-        /// Compute quadrature rule for the cell.
-        /// qr.second and qr.first are the coordinate and weight of gauss point respectively.
-        auto qr = gq.compute_quadrature_rule(*cell);
-        for (size_t i = 0; i < qr.second.size(); i++)
-        {
-            std::vector<double> point({qr.first[2 * i], qr.first[2 * i + 1]});
-            points.push_back(point);
             weights.push_back(qr.second[i]);
+            points.push_back(point);
+            values.push_back(derivative_value);
         }
     }
 }
