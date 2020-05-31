@@ -84,7 +84,7 @@ void my_move(Mesh &mesh, Function &displacement)
 int main()
 {
     // Create chanel mesh
-    size_t nnn = 32;
+    size_t nnn = 128;
     Point point0(0, 0, 0);
     Point point1(1.0, 1.0, 0);
     IBMesh ba({point0, point1}, {nnn, nnn});
@@ -93,9 +93,11 @@ int main()
     auto circle = std::make_shared<Mesh>("./circle.xml.gz");
     auto U = std::make_shared<Poisson::FunctionSpace>(circle);
     auto body_velocity = std::make_shared<Function>(U);
+    auto body_position = std::make_shared<Function>(U);
     auto body_disp = std::make_shared<Function>(U);
 
     auto position = std::make_shared<Position>();
+    body_position->interpolate(*position);
     body_disp->interpolate(*position);
 
     // Create function spaces
@@ -128,6 +130,7 @@ int main()
     auto u1 = std::make_shared<Function>(V);
     auto p0 = std::make_shared<Function>(Q);
     auto p1 = std::make_shared<Function>(Q);
+    auto domain_force = std::make_shared<Function>(V);
     
     // Create coefficients
     auto k = std::make_shared<Constant>(dt);
@@ -170,10 +173,13 @@ int main()
     File ufile("results/velocity.pvd");
     File pfile("results/pressure.pvd");
     File bfile("results/body.pvd");
+    File ffile("results/domain_force.pvd");
+
 
     // Time-stepping
     double t = dt;
     std::vector<double> force(V->dim());
+
     while (t < T + DOLFIN_EPS)
     {
         // Compute tentative velocity step
@@ -186,6 +192,7 @@ int main()
         
         for (std::size_t i = 0; i < bcu.size(); i++)
             bcu[i]->apply(A1, b1);
+        
         solve(A1, *u1->vector(), b1, "gmres", "default");
         end();
 
@@ -211,7 +218,7 @@ int main()
         // force calculation
         begin("Computing elastic force");
         auto temp_disp = std::make_shared<Function>(U);
-
+        
         /// 1. 进行速度插值
         body_velocity->interpolate(*u1);
 
@@ -226,7 +233,7 @@ int main()
         std::vector<double> weights; /// shape = (1,)
         std::vector<std::vector<double>> points; /// shape = (2,)
         std::vector<std::vector<double>> values; /// shape = (2,2)
-        calculate_values_at_gauss_points(*body_disp, weights, points, values);
+        calculate_values_at_gauss_points(*body_position, weights, points, values);
 
         /*
         for (size_t i = 0; i < weights.size(); i++)
@@ -249,7 +256,7 @@ int main()
         
 
         /// 5. 组装 \int mu*FF^{T}:grad(v) dx
-        force = source_assemble(points, values, weights, *(u1->function_space()), ba);
+        force = source_assemble(weights, points, values, *(u1->function_space()), ba);
         /*
         double force_max = 0.0;
         for (size_t i = 0; i < force.size(); i++)
@@ -263,6 +270,8 @@ int main()
         */
        
         // Save to file
+        domain_force->vector()->set_local(force);
+        ffile << *domain_force;
         ufile << *u1;
         pfile << *p1;
         bfile << *body_disp;

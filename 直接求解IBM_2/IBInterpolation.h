@@ -24,7 +24,7 @@ void calculate_values_at_gauss_points(
 {
     // Construct Gauss quadrature rules
     // dimension 2 and order 9
-    SimplexQuadrature gq(2, 9);
+    SimplexQuadrature gq(2, 16);
     auto mesh = displace.function_space()->mesh();
     auto dofmap = displace.function_space()->dofmap();
     auto element = displace.function_space()->element();
@@ -76,9 +76,9 @@ void calculate_values_at_gauss_points(
                 
                 double det = 1.0/(a*d-b*c);
                 derivative_value[0] =  (b*b+d*d)/(det*det);
-                derivative_value[3] = -(c*d+a*b)/(det*det);
+                derivative_value[1] = -(c*d+a*b)/(det*det);
                 derivative_value[2] = -(c*d+a*b)/(det*det);
-                derivative_value[1] =  (a*a+c*c)/(det*det);
+                derivative_value[3] =  (a*a+c*c)/(det*det);
 
                 /// std::cout << derivative_value[0] << ", " << derivative_value[1] << ", " << derivative_value[2] << ", " << derivative_value[3] <<std::endl;
             }
@@ -128,9 +128,9 @@ void calculate_basis_derivative_values(
 }
 
 std::vector<double> source_assemble(
+    const std::vector<double> &weights,
     const std::vector<std::vector<double>> &points,
     const std::vector<std::vector<double>> &values,
-    const std::vector<double> &weights,
     const FunctionSpace &function_space,
     const IBMesh &um)
 {
@@ -146,6 +146,13 @@ std::vector<double> source_assemble(
 
         Point point_temp(2, point.data());
         auto cell = find_cell(point_temp, um);
+        /*
+        if (cell.contains(point_temp)) {
+            std::cout<< "contain." << std::endl;
+        } else {
+            std::cout<< "contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain." << std::endl;
+
+        }*/
         /// std::cout<<point_temp<<std::endl;
         /// std::vector<double> cell_coordinates;
         /// cell.get_vertex_coordinates(cell_coordinates);
@@ -162,12 +169,11 @@ std::vector<double> source_assemble(
 
         for (size_t j = 0; j < cell_dofmap.size(); j++)
         {
-            double result = 0.0;
             for (size_t k = 0; k < 4; k++)
             {
-                result += 0.2*cell_basis_derivatives[4*j + k] * value[k];
+                ///  *cell_basis_derivatives[j*4 + k]
+                results[cell_dofmap[j]] += weight* value[k];
             }
-            results[cell_dofmap[j]] += weight * result;
         }
     }
     return results;
