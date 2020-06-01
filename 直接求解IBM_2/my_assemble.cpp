@@ -51,8 +51,18 @@ void calculate_values_at_gauss_points(
         auto qr = gq.compute_quadrature_rule(*cell);
         for (size_t i = 0; i < qr.second.size(); i++)
         {
-            /// 会出现跑到单元外部的高斯点，这一点需要注意。
             std::vector<double> point({qr.first[2 * i], qr.first[2 * i + 1]});
+
+            /// 会出现跑到单元外部的高斯点，这一点需要注意。
+            if ( qr.first[2 * i] > 1.0 || qr.first[2 * i + 1] > 1 ) {
+                std::cout << "point : " << qr.first[2 * i] << " " << qr.first[2 * i + 1] << std::endl;
+                std::vector<double> cell_coordinates;
+                cell->get_vertex_coordinates(cell_coordinates);
+                for (size_t j = 0; j < cell_coordinates.size(); j++)
+                {
+                    std::cout << cell_coordinates[j] << std::endl;
+                }
+            }
             element->evaluate_basis_derivatives_all(
                 1,
                 basis_derivative_values.data(),
@@ -130,6 +140,37 @@ void calculate_basis_derivative_values(
     }
 }
 
+void calculate_basis_values(
+    const FunctionSpace &function_space,
+    const Cell &cell,
+    const std::vector<double> &point,
+    std::vector<size_t> &cell_dofmap,
+    std::vector<double> &cell_basis_derivatives)
+{
+    /// std::vector<size_t> &cell_dofmap 和 std::vector<double> &cell_basis_derivatives
+    /// 需要在调用这个函数之前分配好空间。
+
+    ufc::cell ufc_cell;
+    cell.get_cell_data(ufc_cell);
+
+    std::vector<double> coordinate_dofs;
+    cell.get_coordinate_dofs(coordinate_dofs);
+
+    /// store values derivative basis.
+    auto element = function_space.element();
+    element->evaluate_basis_all(
+        cell_basis_derivatives.data(),
+        point.data(),
+        coordinate_dofs.data(),
+        ufc_cell.orientation);
+    auto cell_dofmap_eigen = function_space.dofmap()->cell_dofs(cell.index());
+
+    for (size_t i = 0; i < cell_dofmap.size(); i++)
+    {
+        cell_dofmap[i]  = cell_dofmap_eigen[i];
+    }
+}
+
 std::vector<double> source_assemble(
     const std::vector<double> &weights,
     const std::vector<std::vector<double>> &points,
@@ -142,12 +183,28 @@ std::vector<double> source_assemble(
 
     for (size_t i = 0; i < points.size(); i++)
     {
+        // std::cout<<points.size()<<std::endl;
         auto point = points[i];
         auto value = values[i];
         auto weight = weights[i];
 
         Point point_temp(2, point.data());
         auto cell = find_cell(point_temp, um);
+        /*
+        if (cell.contains(point_temp)) {
+            std::cout<< "contain." << std::endl;
+        } else {
+            std::cout<< "contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain." << std::endl;
+
+        }*/
+        /// std::cout<<point_temp<<std::endl;
+        /// std::vector<double> cell_coordinates;
+        /// cell.get_vertex_coordinates(cell_coordinates);
+        /// for (size_t j = 0; j < cell_coordinates.size(); j++)
+        /// {
+        ///    std::cout << cell_coordinates[j] << std::endl;
+        /// }
+        
 
         std::vector<size_t> cell_dofmap(space_dimension);
         std::vector<double> cell_basis_der(space_dimension * 4);
@@ -156,11 +213,30 @@ std::vector<double> source_assemble(
 
         for (size_t j = 0; j < cell_dofmap.size(); j++)
         {
+            /// std::cout<<" cell_dofmap.size() "<<cell_dofmap.size()<<std::endl;
             for (size_t k = 0; k < 4; k++)
             {
+                ///  *cell_basis_derivatives[j*4 + k]
                 results[cell_dofmap[j]] += weight*cell_basis_der[j*4 + k];
             }
         }
+/*
+        std::vector<size_t> cell_dofmap(space_dimension);
+        std::vector<double> cell_basis(space_dimension * 2);
+
+        calculate_basis_values(function_space, cell, point, cell_dofmap, cell_basis);
+        
+        for (size_t j = 0; j < cell_dofmap.size(); j++)
+        {
+            /// std::cout<<" cell_dofmap.size() "<<cell_dofmap.size()<<std::endl;
+            for (size_t k = 0; k < 2; k++)
+            {
+                ///  *cell_basis_derivatives[j*4 + k]
+                /// std::cout << cell_basis[j*2 + k] << std::endl;
+                results[cell_dofmap[j]] += weight*cell_basis[j*2 + k];
+            }
+        }
+*/
     }
     return results;
 }
