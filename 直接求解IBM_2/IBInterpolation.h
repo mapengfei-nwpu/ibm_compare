@@ -14,6 +14,8 @@ Cell find_cell(const Point &point, const IBMesh &um)
     /// std::cout << index_2 << std::endl;
     Cell cell_1(*mesh, index_1);
     Cell cell_2(*mesh, index_2);
+    asdfsd
+    
 
     return cell_1.contains(point) ? cell_1 : cell_2;
 }
