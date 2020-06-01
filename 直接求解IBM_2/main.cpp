@@ -84,7 +84,7 @@ void my_move(Mesh &mesh, Function &displacement)
 int main()
 {
     // Create chanel mesh
-    size_t nnn = 32;
+    size_t nnn = 128;
     Point point0(0, 0, 0);
     Point point1(1.0, 1.0, 0);
     IBMesh ba({point0, point1}, {nnn, nnn});
@@ -227,17 +227,13 @@ int main()
         *body_disp = *temp_disp;
 
         /// 3. 移动网格
-        my_move(*circle, *body_position);
+        my_move(*circle, *body_disp);
 
         /// 4. 计算出实时坐标下的高斯点、高斯权重、高斯点上的 P = mu*F*F^{T}
         std::vector<double> weights; /// shape = (1,)
         std::vector<std::vector<double>> points; /// shape = (2,)
         std::vector<std::vector<double>> values; /// shape = (2,2)
-        calculate_values_at_gauss_points(*u1, weights, points, values);
-        
-        std::cout << weights.size() << std::endl;
-        std::cout << points.size() << std::endl;
-        std::cout << values.size() << std::endl;
+        calculate_values_at_gauss_points(*body_position, weights, points, values);
 
         /*
         for (size_t i = 0; i < weights.size(); i++)

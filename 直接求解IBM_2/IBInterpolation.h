@@ -10,8 +10,6 @@ Cell find_cell(const Point &point, const IBMesh &um)
 
     auto index_1 = 2 * um.hash(point);
     auto index_2 = 2 * um.hash(point) + 1;
-    /// std::cout << point << std::endl;
-    /// std::cout << index_2 << std::endl;
     Cell cell_1(*mesh, index_1);
     Cell cell_2(*mesh, index_2);
     asdfsd
@@ -28,7 +26,7 @@ void calculate_values_at_gauss_points(
 {
     // Construct Gauss quadrature rules
     // dimension 2 and order 9
-    SimplexQuadrature gq(2, 2);
+    SimplexQuadrature gq(2, 16);
     auto mesh = displace.function_space()->mesh();
     auto dofmap = displace.function_space()->dofmap();
     auto element = displace.function_space()->element();
@@ -53,7 +51,6 @@ void calculate_values_at_gauss_points(
         auto qr = gq.compute_quadrature_rule(*cell);
         for (size_t i = 0; i < qr.second.size(); i++)
         {
-            /// 会出现跑到单元外部的高斯点，这一点需要注意。
             std::vector<double> point({qr.first[2 * i], qr.first[2 * i + 1]});
             element->evaluate_basis_derivatives_all(
                 1,
@@ -144,23 +141,40 @@ std::vector<double> source_assemble(
 
     for (size_t i = 0; i < points.size(); i++)
     {
+        // std::cout<<points.size()<<std::endl;
         auto point = points[i];
         auto value = values[i];
         auto weight = weights[i];
 
         Point point_temp(2, point.data());
         auto cell = find_cell(point_temp, um);
+        /*
+        if (cell.contains(point_temp)) {
+            std::cout<< "contain." << std::endl;
+        } else {
+            std::cout<< "contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain.contain." << std::endl;
+
+        }*/
+        /// std::cout<<point_temp<<std::endl;
+        /// std::vector<double> cell_coordinates;
+        /// cell.get_vertex_coordinates(cell_coordinates);
+        /// for (size_t j = 0; j < cell_coordinates.size(); j++)
+        /// {
+        ///    std::cout << cell_coordinates[j] << std::endl;
+        /// }
+        
 
         std::vector<size_t> cell_dofmap(space_dimension);
-        std::vector<double> cell_basis_der(space_dimension * 4);
+        std::vector<double> cell_basis_derivatives(space_dimension * 4);
 
-        calculate_basis_derivative_values(function_space, cell, point, cell_dofmap, cell_basis_der);
+        calculate_basis_derivative_values(function_space, cell, point, cell_dofmap, cell_basis_derivatives);
 
         for (size_t j = 0; j < cell_dofmap.size(); j++)
         {
             for (size_t k = 0; k < 4; k++)
             {
-                results[cell_dofmap[j]] += weight*cell_basis_der[j*4 + k];
+                ///  *cell_basis_derivatives[j*4 + k]
+                results[cell_dofmap[j]] += weight* value[k];
             }
         }
     }
