@@ -28,7 +28,7 @@ void calculate_values_at_gauss_points(
 {
     // Construct Gauss quadrature rules
     // dimension 2 and order 9
-    SimplexQuadrature gq(2, 7);
+    SimplexQuadrature gq(2, 2);
     auto mesh = displace.function_space()->mesh();
     auto dofmap = displace.function_space()->dofmap();
     auto element = displace.function_space()->element();
@@ -72,36 +72,21 @@ void calculate_values_at_gauss_points(
                 }
             }
             
-            /*
+
             {
                 double a = derivative_value[0];
-                double d = derivative_value[1];
-                double b = derivative_value[2];
-                double c = derivative_value[3];
+                double b = derivative_value[1];
+                double c = derivative_value[2];
+                double d = derivative_value[3];
                 
                 double det = 1.0/(a*d-b*c);
-                derivative_value[0] =  (b*b+c*c)/(det*det);
+                derivative_value[0] =  (b*b+d*d)/(det*det);
                 derivative_value[1] = -(c*d+a*b)/(det*det);
                 derivative_value[2] = -(c*d+a*b)/(det*det);
-                derivative_value[3] =  (a*a+d*d)/(det*det);
+                derivative_value[3] =  (a*a+c*c)/(det*det);
 
                 /// std::cout << derivative_value[0] << ", " << derivative_value[1] << ", " << derivative_value[2] << ", " << derivative_value[3] <<std::endl;
-            }*/
-            /*
-            {
-                double a = derivative_value[0];
-                double d = derivative_value[1];
-                double b = derivative_value[2];
-                double c = derivative_value[3];
-                
-                double det = 1.0/(a*d-b*c);
-                derivative_value[0] =  c/det;
-                derivative_value[1] = -b/det;
-                derivative_value[2] = -d/det;
-                derivative_value[3] =  a/det;
-
-                /// std::cout << derivative_value[0] << ", " << derivative_value[1] << ", " << derivative_value[2] << ", " << derivative_value[3] <<std::endl;
-            }*/
+            }
             weights.push_back(qr.second[i]);
             points.push_back(point);
             values.push_back(derivative_value);
@@ -175,7 +160,7 @@ std::vector<double> source_assemble(
         {
             for (size_t k = 0; k < 4; k++)
             {
-                results[cell_dofmap[j]] += 0.2*weight*cell_basis_der[j*4 + k]*value[k];
+                results[cell_dofmap[j]] += weight*cell_basis_der[j*4 + k];
             }
         }
     }
