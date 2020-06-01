@@ -26,7 +26,7 @@ void calculate_values_at_gauss_points(
 {
     // Construct Gauss quadrature rules
     // dimension 2 and order 9
-    SimplexQuadrature gq(2, 16);
+    SimplexQuadrature gq(2, 2);
     auto mesh = displace.function_space()->mesh();
     auto dofmap = displace.function_space()->dofmap();
     auto element = displace.function_space()->element();
@@ -173,8 +173,7 @@ std::vector<double> source_assemble(
         {
             for (size_t k = 0; k < 4; k++)
             {
-                ///  *cell_basis_derivatives[j*4 + k]
-                results[cell_dofmap[j]] += weight* value[k];
+                results[cell_dofmap[j]] += weight*cell_basis_der[j*4 + k];
             }
         }
     }
