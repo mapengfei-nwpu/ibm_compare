@@ -1,0 +1,8 @@
+V = VectorElement("P", triangle, 2)
+u = TrialFunction(V)
+v = TestFunction(V)
+
+f = Coefficient(V)
+
+a  = inner(grad(u),grad(v))*dx
+L  = inner(f,v)*dx
