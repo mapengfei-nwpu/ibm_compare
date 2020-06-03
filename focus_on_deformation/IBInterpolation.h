@@ -23,7 +23,7 @@ void calculate_values_at_gauss_points(
 {
     // Construct Gauss quadrature rules
     // dimension 2 and order 9
-    SimplexQuadrature gq(2, 3);
+    SimplexQuadrature gq(2, 6);
     auto mesh = displace.function_space()->mesh();
     auto dofmap = displace.function_space()->dofmap();
     auto element = displace.function_space()->element();
@@ -39,7 +39,7 @@ void calculate_values_at_gauss_points(
         std::vector<double> coordinate_dofs;
         cell->get_coordinate_dofs(coordinate_dofs);
 
-        std::vector<double> basis_derivative_values(value_size * space_dimension * 2);
+        std::vector<double> basis_derivative_values(derivative_value_size * space_dimension);
         
         auto cell_dofmap = dofmap->cell_dofs(cell->index());
 
@@ -155,8 +155,10 @@ std::vector<double> source_assemble(
 
         for (size_t j = 0; j < cell_dofmap.size(); j++)
         {
-            results[cell_dofmap[j]] += weight * cell_basis_derivatives[j*4 + 0];// * value[k];
-            results[cell_dofmap[j]] += weight * cell_basis_derivatives[j*4 + 3];// * value[k];
+            results[cell_dofmap[j]] += weight * cell_basis_derivatives[j*4 + 0] * value[0];
+            results[cell_dofmap[j]] += weight * cell_basis_derivatives[j*4 + 1] * value[1];
+            results[cell_dofmap[j]] += weight * cell_basis_derivatives[j*4 + 2] * value[2];
+            results[cell_dofmap[j]] += weight * cell_basis_derivatives[j*4 + 3] * value[3];
 
         }
     }

@@ -236,7 +236,7 @@ int main()
         std::vector<double> weights; /// shape = (1,)
         std::vector<std::vector<double>> points; /// shape = (2,)
         std::vector<std::vector<double>> values; /// shape = (2,2)
-        calculate_values_at_gauss_points(*body_disp, weights, points, values);
+        calculate_values_at_gauss_points(*body_position, weights, points, values);
         
 
         /// 5. 组装 \int mu*FF^{T}:grad(v) dx

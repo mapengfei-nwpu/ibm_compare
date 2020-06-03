@@ -1,4 +1,4 @@
-V = VectorElement("P", triangle, 2)
+V = VectorElement("P", triangle, 1)
 u = TrialFunction(V)
 v = TestFunction(V)
 
