@@ -1,7 +1,4 @@
 from fenics import *
-import matplotlib.pyplot as plt
-
-# 解释了为什么要用
 
 mesh = RectangleMesh(Point(0, 0), Point(1, 1), 10, 10)
 V = VectorFunctionSpace(mesh, "P", 1)

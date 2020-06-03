@@ -8,8 +8,8 @@ find_package(pybind11 REQUIRED)
 find_package(DOLFIN REQUIRED)
 include(${DOLFIN_USE_FILE})
 
-# Target libraries
-
+# Add pybin11 module
 pybind11_add_module(test_function test_function.cpp)
 
+# Target the library
 target_link_libraries(${PROJECT_NAME} PRIVATE dolfin)

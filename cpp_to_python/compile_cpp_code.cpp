@@ -3,29 +3,7 @@
 #include <stdio.h>
 #include <iostream>
 
-#include <dolfin/mesh/Mesh.h>
-#include <dolfin/mesh/MeshEntity.h>
-#include <dolfin/mesh/Vertex.h>
-#include <dolfin/mesh/Cell.h>
-#include <dolfin/mesh/MeshData.h>
-#include <dolfin/mesh/MeshDomains.h>
-#include <dolfin/mesh/MeshGeometry.h>
-#include <dolfin/mesh/MeshConnectivity.h>
-#include <dolfin/mesh/MeshTopology.h>
-#include <dolfin/mesh/MeshEntityIterator.h>
-#include <dolfin/mesh/MeshFunction.h>
-
-#include <dolfin/function/Function.h>
-#include <dolfin/function/FunctionSpace.h>
-#include <dolfin/function/Expression.h>
-#include <dolfin/la/GenericVector.h>
-#include <dolfin/common/Array.h>
-#include <dolfin/fem/fem_utils.h>
-#include <dolfin/common/types.h>
-#include <dolfin/common/Hierarchical.h>
-#include <dolfin/function/GenericFunction.h>
-#include <dolfin/function/FunctionAXPY.h>
-#include <dolfin/geometry/BoundingBoxTree.h>
+#include <dolfin.h>
 
 using namespace dolfin;
 
