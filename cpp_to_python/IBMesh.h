@@ -1,5 +1,7 @@
 #ifndef _IBMesh_H_
 #define _IBMesh_H_
+#include <pybind11/stl.h>
+#include <pybind11/pybind11.h>
 #include <iostream>
 #include <dolfin.h>
 using namespace dolfin;
@@ -7,38 +9,33 @@ using namespace dolfin;
 class IBMesh
 {
 public:
-	IBMesh(std::array<dolfin::Point, 2> points, std::vector<size_t> dims, CellType::Type cell_type = CellType::Type::triangle)
+	IBMesh(std::array<dolfin::Point, 2> points, std::vector<size_t> dims)//, CellType::Type cell_type = CellType::Type::triangle)
 	{
 
 		// toplogy dimesion
-		top_dim = dims.size();
+		// 二维情况下dims[2]等于零。
+		top_dim = dims[2] == 0 ? 2 : 3;		
 
 		// generate mesh
 		auto _mesh = RectangleMesh::create(points, {dims[0], dims[1]}, CellType::Type::triangle, "left/right");
 		mesh_ptr = std::make_shared<Mesh>(_mesh);
-
+		mpi_rank = dolfin::MPI::rank(mesh_ptr->mpi_comm());
+		
 		// check again.
 		if (top_dim != 2 && top_dim != 3)
 			dolfin_error("the size of dims must be 2 & 3.", ".", ".");
 
 		nx = dims[0];
 		ny = dims[1];
-		nz = 0;
+		nz = dims[2];
 
 		x0 = points[0].x();
 		x1 = points[1].x();
 		y0 = points[0].y();
 		y1 = points[1].y();
-		z0 = 0.0;
-		z1 = 0.0;
+		z0 = points[0].z();
+		z1 = points[1].z();
 
-		if (top_dim == 3)
-		{
-			nz = dims[2];
-			z0 = points[0].z();
-			z1 = points[1].z();
-		}
-		mpi_rank = dolfin::MPI::rank(mesh_ptr->mpi_comm());
 		index_mesh();
 	}
 
@@ -95,28 +92,53 @@ public:
 
 	size_t hash(const dolfin::Point &point) const
 	{
-		if (top_dim != 2 && top_dim != 3)
-			dolfin_error("the size of dims must be 2 and 3.", ".", ".");
-
 		double x = point.x();
 		double y = point.y();
 		double z = point.z();
 
 		double dx = (x1 - x0) / static_cast<double>(nx);
 		double dy = (y1 - y0) / static_cast<double>(ny);
-		double dz = 0.0;
+		double dz = (z1 - z0) / static_cast<double>(nz);
 
 		size_t i = static_cast<size_t>((x - x0) / dx);
 		size_t j = static_cast<size_t>((y - y0) / dy);
 		size_t k = 0;
 
 		if (top_dim == 3)
-		{
-			dz = (z1 - z0) / static_cast<double>(nz);
 			k = static_cast<size_t>((z - z0) / dz);
-		}
 
 		return k * nx * ny + j * nx + i;
+	}
+
+		size_t valid_global_index(size_t global_index){
+		if (global_map.size() > global_index){
+			if (global_map[global_index][0] == mpi_rank){
+				return global_map[global_index][1];
+			}
+		} else {
+			return static_cast<size_t>(-1);
+		}
+	}
+
+	bool find_cell(const Point &point, Cell &cell)
+	{
+    	auto index_1 = valid_global_index(2 * hash(point));
+		auto index_2 = valid_global_index(2 * hash(point)+1);
+
+		/// if index is not inside local mesh, assign it with 0.
+		index_1 == mesh_ptr->num_entities(top_dim) > index_1 ? index_1 : 0;
+		index_2 == mesh_ptr->num_entities(top_dim) > index_2 ? index_2 : 0;
+
+		Cell cell_1(*mesh_ptr, index_1);
+    	Cell cell_2(*mesh_ptr, index_2);
+
+		cell = cell_1.contains(point) ? cell_1 : cell_2;
+		
+		if (cell.contains(point)){
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	double x0, x1, y0, y1, z0, z1;
@@ -127,4 +149,13 @@ public:
 	std::vector<std::array<size_t, 2>> global_map;
 	std::shared_ptr<Mesh> mesh_ptr;
 };
+
+namespace py = pybind11;
+PYBIND11_MODULE(IBMesh, m)
+{
+    py::class_<IBMesh>(m, "IBMesh")
+        .def(py::init<std::array<dolfin::Point, 2>, std::vector<size_t>>())
+        .def("find_cell",&IBMesh::find_cell);
+}
+
 #endif

@@ -12,7 +12,10 @@ include(${DOLFIN_USE_FILE})
 pybind11_add_module(test_function test_function.cpp)
 pybind11_add_module(test_vector test_vector.cpp)
 pybind11_add_module(test_struct_vector test_struct_vector.cpp)
+pybind11_add_module(IBMesh IBMesh.cpp)
+
 
 # Target the library
 target_link_libraries(test_function PRIVATE dolfin)
 target_link_libraries(test_struct_vector PRIVATE dolfin)
+target_link_libraries(IBMesh PRIVATE dolfin)
