@@ -9,6 +9,8 @@ using namespace dolfin;
 class IBMesh
 {
 public:
+	/// TODO : Add 3D version.
+	/// TODO : Add hexahedron and tethedron.
 	IBMesh(std::array<dolfin::Point, 2> points, std::vector<size_t> dims)//, CellType::Type cell_type = CellType::Type::triangle)
 	{
 
@@ -17,8 +19,11 @@ public:
 		top_dim = dims[2] == 0 ? 2 : 3;		
 
 		// generate mesh
-		auto _mesh = RectangleMesh::create(points, {dims[0], dims[1]}, CellType::Type::triangle, "left/right");
-		mesh_ptr = std::make_shared<Mesh>(_mesh);
+		// DIMENSION
+		mesh_ptr = std::make_shared<Mesh>(
+					 RectangleMesh::create(points, {dims[0], dims[1]}, CellType::Type::triangle, "left/right")
+					);
+
 		mpi_rank = dolfin::MPI::rank(mesh_ptr->mpi_comm());
 		
 		// check again.
@@ -29,6 +34,8 @@ public:
 		ny = dims[1];
 		nz = dims[2];
 
+		/// TODO : check x1 > x0, y1>y0, z1>z0
+		/// TODO : check x1-x0 > DOLFIN_EPS...
 		x0 = points[0].x();
 		x1 = points[1].x();
 		y0 = points[0].y();
@@ -49,6 +56,8 @@ public:
 		return mesh_ptr;
 	}
 
+	// 网格单元边长
+	// DIMENSION
 	std::vector<double> side_length()
 	{
 		if (top_dim != 2)
@@ -74,7 +83,7 @@ public:
 		std::vector<std::vector<size_t>> mpi_collect(dolfin::MPI::size(mesh_ptr->mpi_comm()));
 		dolfin::MPI::all_gather(mesh_ptr->mpi_comm(), local_map, mpi_collect);
 		// alloc memory for global map.
-		auto num_cell_global = mesh_ptr->num_entities_global(2);
+		auto num_cell_global = mesh_ptr->num_entities_global(top_dim);
 		global_map.resize(num_cell_global);
 		for (auto iter = mpi_collect.cbegin(); iter != mpi_collect.cend(); iter++)
 		{
@@ -110,7 +119,7 @@ public:
 		return k * nx * ny + j * nx + i;
 	}
 
-		size_t valid_global_index(size_t global_index){
+	size_t valid_global_index(size_t global_index){
 		if (global_map.size() > global_index){
 			if (global_map[global_index][0] == mpi_rank){
 				return global_map[global_index][1];
@@ -126,8 +135,8 @@ public:
 		auto index_2 = valid_global_index(2 * hash(point)+1);
 
 		/// if index is not inside local mesh, assign it with 0.
-		index_1 == mesh_ptr->num_entities(top_dim) > index_1 ? index_1 : 0;
-		index_2 == mesh_ptr->num_entities(top_dim) > index_2 ? index_2 : 0;
+		index_1 = mesh_ptr->num_entities(top_dim) > index_1 ? index_1 : 0;
+		index_2 = mesh_ptr->num_entities(top_dim) > index_2 ? index_2 : 0;
 
 		Cell cell_1(*mesh_ptr, index_1);
     	Cell cell_2(*mesh_ptr, index_2);
@@ -140,7 +149,7 @@ public:
 			return false;
 		}
 	}
-
+private:
 	double x0, x1, y0, y1, z0, z1;
 	size_t nx, ny, nz;
 	size_t top_dim;
@@ -155,7 +164,11 @@ PYBIND11_MODULE(IBMesh, m)
 {
     py::class_<IBMesh>(m, "IBMesh")
         .def(py::init<std::array<dolfin::Point, 2>, std::vector<size_t>>())
-        .def("find_cell",&IBMesh::find_cell);
+        .def("find_cell",&IBMesh::find_cell)
+		.def("mesh",&IBMesh::mesh)
+		.def("hash",&IBMesh::hash)
+		.def("map",&IBMesh::map)
+		;
 }
 
 #endif
