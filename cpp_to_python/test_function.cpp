@@ -3,8 +3,8 @@
 #include<pybind11/pybind11.h>
 
 using namespace dolfin;
-int size(const Function& function){
-    return function.function_space()->dim();
+int size(std::shared_ptr<Function> function){
+    return function->function_space()->dim();
 }
 
 namespace py = pybind11;
