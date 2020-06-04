@@ -8,22 +8,18 @@ seperations = [10, 10, 0]
 regular_mesh = IBMesh.IBMesh(points, seperations)
 mesh = regular_mesh.mesh()
 cell = Cell(mesh, 0) 
-regular_mesh.find_cell(Point(1.5,0.5), cell)
-regular_mesh.hash(Point(1.5,0.5))
+
 # 测试一组随机点
 import numpy as np
 from mpi4py import MPI
 n = 10
-
 total = 0
-
 if MPI.COMM_WORLD.Get_rank() == 0:
     r = np.random.rand(2*n)
 else:
     r = None
 
 r = MPI.COMM_WORLD.bcast(r, root=0)
-
 f = open(str(MPI.COMM_WORLD.Get_rank())+"out.txt", "w")
 for i in range(n):
     point = Point(r[2*i],r[2*i+1])
