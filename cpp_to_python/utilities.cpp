@@ -1,28 +1,8 @@
 #include <dolfin.h>
 #include <dolfin/geometry/SimplexQuadrature.h>
+#include "utilities.h"
 using namespace dolfin;
 
-/// 把每个处理器上的vector收集起来，放在一个vector中。
-template <typename T>
-std::vector<T> my_mpi_gather(std::vector<T> local)
-{
-	auto mpi_size = dolfin::MPI::size(MPI_COMM_WORLD);
-
-	/// Collect vector on every processor.
-	std::vector<std::vector<T>> mpi_collect(mpi_size);
-	dolfin::MPI::all_gather(MPI_COMM_WORLD, local, mpi_collect);
-	std::vector<T> global;
-
-	/// Unwrap vector<vector> to vector.
-	for (size_t i = 0; i < mpi_collect.size(); i++)
-	{
-		for (size_t j = 0; j < mpi_collect[i].size(); j++)
-		{
-			global.push_back(mpi_collect[i][j]);
-		}
-	}
-	return global;
-}
 
 /// f 必须属于拉格朗日空间，这样，它的每个点的值就是对应的自由度。
 /// dofs are placed on the coordinates of dofs

@@ -13,6 +13,7 @@ class IBInterpolation
 public:
 	/// information about mesh structure.
 	std::shared_ptr<IBMesh> um;
+	std::vector<double> side_lengths;
 
 	/// construct function.
 	IBInterpolation(std::shared_ptr<IBMesh> um) : um(um)
