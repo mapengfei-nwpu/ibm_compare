@@ -162,7 +162,7 @@ private:
 namespace py = pybind11;
 PYBIND11_MODULE(IBMesh, m)
 {
-    py::class_<IBMesh>(m, "IBMesh")
+    py::class_<IBMesh, std::shared_ptr<IBMesh>>(m, "IBMesh")
         .def(py::init<std::array<dolfin::Point, 2>, std::vector<size_t>>())
         .def("find_cell",&IBMesh::find_cell)
 		.def("mesh",&IBMesh::mesh)

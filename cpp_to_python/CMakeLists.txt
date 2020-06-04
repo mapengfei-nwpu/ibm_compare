@@ -9,9 +9,8 @@ find_package(DOLFIN REQUIRED)
 include(${DOLFIN_USE_FILE})
 
 # Add pybin11 module
-pybind11_add_module(IBMesh IBMesh.cpp)
-pybind11_add_module(IBInterpolation IBMesh.cpp utilities.cpp)
-
+pybind11_add_module(IBMesh SHARED IBMesh.cpp)
+pybind11_add_module(IBInterpolation SHARED IBInterpolation.cpp utilities.cpp)
 
 # Target the library
 target_link_libraries(IBMesh PRIVATE dolfin)

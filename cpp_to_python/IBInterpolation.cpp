@@ -1,22 +1,23 @@
 #include <dolfin.h>
 #include <dolfin/geometry/SimplexQuadrature.h>
 #include <numeric>
+#include <pybind11/stl.h>
+#include <pybind11/pybind11.h>
 #include "IBMesh.h"
 #include "utilities.h"
 using namespace dolfin;
 
 
-class DeltaInterplation
+class IBInterpolation
 {
 public:
 	/// information about mesh structure.
-	IBMesh &um;
-	std::vector<double> side_lengths;
+	std::shared_ptr<IBMesh> um;
 
 	/// construct function.
-	DeltaInterplation(IBMesh &uniform_mesh) : um(uniform_mesh)
+	IBInterpolation(std::shared_ptr<IBMesh> um) : um(um)
 	{
-		side_lengths = um.side_length();
+		///
 	}
 
 	void fluid_to_solid(Function &fluid, Function &solid)
@@ -156,3 +157,13 @@ public:
 		}
 	}
 };
+
+namespace py = pybind11;
+PYBIND11_MODULE(IBInterpolation, m)
+{
+    py::class_<IBInterpolation>(m, "IBInterpolation")
+        .def(py::init<std::shared_ptr<IBMesh>>())
+		.def("solid_to_fluid", &IBInterpolation::solid_to_fluid)
+		.def("fluid_to_solid", &IBInterpolation::fluid_to_solid)
+		;
+}

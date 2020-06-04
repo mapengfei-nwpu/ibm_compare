@@ -9,4 +9,6 @@ void get_gauss_rule(const Function &f, std::vector<double> &coordinates, std::ve
 
 template <typename T> std::vector<T> my_mpi_gather(std::vector<T> local);
 
+
+
 };
