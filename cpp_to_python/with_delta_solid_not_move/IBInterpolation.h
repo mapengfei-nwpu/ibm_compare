@@ -113,14 +113,15 @@ class IBInterpolation
 {
 public:
 	/// information about mesh structure.
-	std::shared_ptr<IBMesh> um;
+	std::shared_ptr<IBMesh> fluid_mesh;
+	std::shared_ptr<Mesh> solid_mesh;
 	std::vector<double> side_lengths;
 
 	/// construct function.
-	IBInterpolation(std::shared_ptr<IBMesh> um) : um(um)
+	IBInterpolation(std::shared_ptr<IBMesh> fluid_mesh, std::shared_ptr<Mesh> solid_mesh) : fluid_mesh(fluid_mesh)
 	{
-		side_lengths = um->side_length();
-		um->set_bandwidth(1);
+		side_lengths = fluid_mesh->side_length();
+		fluid_mesh->set_bandwidth(1);
 	}
 
 	/// Assign the solid displacement with the velocity of fluid.
@@ -148,7 +149,7 @@ public:
 	void fluid_to_solid_raw(Function &fluid, std::vector<double> &solid_values,
 							std::vector<std::array<double, 2>> &solid_coordinates)
 	{
-				/// the meshes of v and um should be the same.
+				/// the meshes of v and fluid_mesh should be the same.
 		/// TODO : compare two meshes
 		dolfin_assert(fluid.value_size() == solid_values.size() / solid_coordinates.size());
 
@@ -226,7 +227,7 @@ public:
 
 			/// get indices of adjacent cells on fluid mesh.
 			Point solid_point(solid_coordinates[2 * i], solid_coordinates[2 * i + 1]);
-			auto adjacents = um->get_adjacents(solid_point);
+			auto adjacents = fluid_mesh->get_adjacents(solid_point);
 
 			/// iterate adjacent cells and collect element nodes in these cells.
 			/// it has nothing to do with cell type.
@@ -293,7 +294,7 @@ public:
 	double delta(Point p0, Point p1, double h = 0.0625)
 	{
 		double ret = 1.0;
-		/// 如果更改h的大小，um的bandwidth需要重新设置。
+		/// 如果更改h的大小，fluid_mesh的bandwidth需要重新设置。
    		h = side_lengths[0]*0.5;
 		for (unsigned i = 0; i < 2; ++i)
 		{
