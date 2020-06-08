@@ -70,7 +70,7 @@ void get_gauss_rule(
 	std::vector<double> &weights)
 {
 	// Construct Gauss quadrature rules
-	SimplexQuadrature gq(2, 9);
+	SimplexQuadrature gq(2, 3);
 	auto mesh = f.function_space()->mesh();
 
 	/// iterate cell of local mesh.
@@ -97,13 +97,19 @@ void get_gauss_rule(
 			coordinates.push_back(x[0]);
 			coordinates.push_back(x[1]);
 			weights.push_back(qr.second[i]);
-			values.push_back(v[0]);
-			values.push_back(v[1]);
+			values.push_back(x[0]);
+			values.push_back(x[1]);
 		}
 	}
 	values = my_mpi_gather(values);
 	weights = my_mpi_gather(weights);
 	coordinates = my_mpi_gather(coordinates);
+	for (size_t i = 0; i < weights.size(); i++)
+	{
+		std::cout<<coordinates[i*2]<<","<<coordinates[i*2+1]<<std::endl;
+		std::cout<<weights[i]<<std::endl;
+	}
+	
 }
 
 
@@ -189,7 +195,9 @@ public:
             if (um->find_cell(point, cell)){
 			    auto dab = basis_values_gauss(point, cell, fluid);
 			    integrate_basis(weights[i], dab, gauss_values[i], results);
-            }
+            } else{
+				std::cout<< "wrong" << std::endl;
+			}
 		}
 		return results;
 	}

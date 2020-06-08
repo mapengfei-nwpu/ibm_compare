@@ -21,7 +21,7 @@ public:
 		// generate mesh
 		// DIMENSION
 		mesh_ptr = std::make_shared<Mesh>(
-					 RectangleMesh::create(points, {dims[0], dims[1]}, CellType::Type::triangle, "right")
+					 RectangleMesh::create(points, {dims[0], dims[1]}, CellType::Type::triangle, "left")
 					);
 
 		mpi_rank = dolfin::MPI::rank(mesh_ptr->mpi_comm());
