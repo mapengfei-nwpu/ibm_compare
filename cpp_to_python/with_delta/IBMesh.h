@@ -51,20 +51,58 @@ public:
 	{
 		return global_map[i];
 	}
+
 	std::shared_ptr<Mesh> mesh()
 	{
 		return mesh_ptr;
 	}
+	/// 设置插值带宽
+	void set_bandwidth(int b){
+		bandwidth = b;
+	}
+
+	// point -> global index of adjacent cells -> local index of adjacent cells
+	std::vector<size_t> get_adjacents(Point point)
+	{
+		/// only finished for 2d occassion.
+		std::vector<size_t> adjacents;
+		std::vector<size_t> a;
+		std::vector<size_t> b;
+
+		/// find all probable global adjacents
+		size_t global_index = hash(point);
+		for (int i = -2; i <= 2; i++){
+			for (int j = -2; j <= 2; j++){
+				a.push_back(global_index + i * nx + j);
+			}
+		}
+		for (size_t i = 0; i < a.size(); i++)
+		{
+			b.push_back(a[i] * 2);
+			b.push_back(a[i] * 2 + 1);
+		}
+
+		/// select valid local cells.
+		for (size_t i = 0; i < b.size(); i++)
+		{
+			if (b[i] >= 0 && b[i] < global_map.size())
+			{
+				if (map(b[i])[0] == mpi_rank)
+				{
+					adjacents.push_back(map(b[i])[1]);
+				}
+			}
+		}
+		return adjacents;
+	}
 
 	// 网格单元边长
-	// DIMENSION
 	std::vector<double> side_length()
 	{
-		if (top_dim != 2)
-			dolfin_error("the size of dims must be 2 & 3.", "side_length()", ".");
 		std::vector<double> side_lengths;
 		side_lengths.push_back((x1 - x0) / nx);
 		side_lengths.push_back((y1 - y0) / ny);
+		side_lengths.push_back((z1 - z0) / nz);
 		return side_lengths;
 	}
 
@@ -154,6 +192,7 @@ private:
 	size_t nx, ny, nz;
 	size_t top_dim;
 	size_t mpi_rank;
+	int bandwidth = 1;
 	// The map of global index to hash index for cells.
 	std::vector<std::array<size_t, 2>> global_map;
 	std::shared_ptr<Mesh> mesh_ptr;
@@ -168,6 +207,8 @@ PYBIND11_MODULE(IBMesh, m)
 		.def("mesh",&IBMesh::mesh)
 		.def("hash",&IBMesh::hash)
 		.def("map",&IBMesh::map)
+		.def("get_adjacents",&IBMesh::get_adjacents)
+		.def("side_length",&IBMesh::side_length)
 		;
 }
 

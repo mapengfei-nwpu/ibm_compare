@@ -4,10 +4,10 @@ import IBMesh
 # 测试一个例子
 # 注意points中两个点的顺序，x,y坐标必须从小到大。
 points = [Point(0, 0, 0), Point(1, 1, 0)]
-seperations = [10, 10, 0]
+seperations = [100, 100, 0]
 regular_mesh = IBMesh.IBMesh(points, seperations)
 mesh = regular_mesh.mesh()
-cell = Cell(mesh, 0) 
+adjacents = regular_mesh.hash(Point(0.1,0.1))
 
 # 测试一组随机点
 import numpy as np

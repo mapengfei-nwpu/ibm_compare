@@ -75,7 +75,7 @@ void get_gauss_rule(
 	std::vector<double> &weights)
 {
 	// Construct Gauss quadrature rules
-	SimplexQuadrature gq(2, 9);
+	SimplexQuadrature gq(2, 6);
 	auto mesh = f.function_space()->mesh();
 
 	/// iterate cell of local mesh.
@@ -109,17 +109,18 @@ void get_gauss_rule(
 	coordinates = my_mpi_gather(coordinates);
 }
 
-class DeltaInterplation
+class IBInterpolation
 {
 public:
 	/// information about mesh structure.
-	IBMesh &um;
+	std::shared_ptr<IBMesh> um;
 	std::vector<double> side_lengths;
 
 	/// construct function.
-	DeltaInterplation(IBMesh &uniform_mesh) : um(uniform_mesh)
+	IBInterpolation(std::shared_ptr<IBMesh> um) : um(um)
 	{
-		side_lengths = um.side_length();
+		side_lengths = um->side_length();
+		um->set_bandwidth(1);
 	}
 
 	/// Assign the solid displacement with the velocity of fluid.
@@ -225,7 +226,7 @@ public:
 
 			/// get indices of adjacent cells on fluid mesh.
 			Point solid_point(solid_coordinates[2 * i], solid_coordinates[2 * i + 1]);
-			auto adjacents = um.get_adjacents(solid_point);
+			auto adjacents = um->get_adjacents(solid_point);
 
 			/// iterate adjacent cells and collect element nodes in these cells.
 			/// it has nothing to do with cell type.
@@ -263,7 +264,7 @@ public:
 				}
 			}
 		}
-
+		/// f.vector()->add_local(data, dofs);
 		//////////////////  TODO : this part can use MPI_reduce directly  //////////////////////
 		std::vector<double> fluid_values(global_fluid_size);
 		std::vector<std::vector<double>> mpi_collect(dolfin::MPI::size(mesh->mpi_comm()));
@@ -292,6 +293,7 @@ public:
 	double delta(Point p0, Point p1, double h = 0.0625)
 	{
 		double ret = 1.0;
+		/// 如果更改h的大小，um的bandwidth需要重新设置。
    		h = side_lengths[0]*0.5;
 		for (unsigned i = 0; i < 2; ++i)
 		{
@@ -304,3 +306,13 @@ public:
 	//  thses methods must not be modified!!  ///
 	/////////////////////////////////////////////
 };
+
+namespace py = pybind11;
+PYBIND11_MODULE(IBInterpolation, m)
+{
+    py::class_<IBInterpolation>(m, "IBInterpolation")
+        .def(py::init<std::shared_ptr<IBMesh>>())
+		.def("solid_to_fluid", &IBInterpolation::solid_to_fluid)
+		.def("fluid_to_solid", &IBInterpolation::fluid_to_solid)
+		;
+}
