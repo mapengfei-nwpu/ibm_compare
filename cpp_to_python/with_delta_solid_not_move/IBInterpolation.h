@@ -52,61 +52,30 @@ std::vector<std::array<double, 2>> get_global_dof_coordinates(const Function &f)
 	return dof_coordinates;
 }
 
-std::vector<double> get_global_dofs(const Function &f)
-{
-	/// some shorcut
-	auto mesh = f.function_space()->mesh();
-	auto mpi_comm = mesh->mpi_comm();
-	auto mpi_size = dolfin::MPI::size(MPI_COMM_WORLD);
-
-	/// get local values.
-	std::vector<double> local_values;
-	f.vector()->get_local(local_values);
-
-	/// collect local values on every process.
-	auto values = my_mpi_gather(local_values);
-	return values;
-}
-
 void get_gauss_rule(
-	const Function &f,
-	std::vector<double> &coordinates,
-	std::vector<double> &values,
+	const std::shared_ptr<Mesh> mesh,
+	std::vector<double> &points,
 	std::vector<double> &weights)
 {
 	// Construct Gauss quadrature rules
 	SimplexQuadrature gq(2, 6);
-	auto mesh = f.function_space()->mesh();
 
 	/// iterate cell of local mesh.
 	for (CellIterator cell(*mesh); !cell.end(); ++cell)
 	{
-		// Create ufc_cell associated with dolfin cell.
-		ufc::cell ufc_cell;
-		cell->get_cell_data(ufc_cell);
-
 		// Compute quadrature rule for the cell.
 		auto qr = gq.compute_quadrature_rule(*cell);
 		dolfin_assert(qr.second.size() == qr.first.size() / 2);
 		for (size_t i = 0; i < qr.second.size(); i++)
 		{
-			Array<double> v(2);
-			Array<double> x(2, qr.first.data());
-
-			/// Call evaluate function
-			f.eval(v, x, *cell, ufc_cell);
-
 			/// push back what we get.
-			coordinates.push_back(x[0]);
-			coordinates.push_back(x[1]);
+			points.push_back(qr.first[2*i]);
+			points.push_back(qr.first[2*i+1]);
 			weights.push_back(qr.second[i]);
-			values.push_back(v[0]);
-			values.push_back(v[1]);
 		}
 	}
-	values = my_mpi_gather(values);
 	weights = my_mpi_gather(weights);
-	coordinates = my_mpi_gather(coordinates);
+	points = my_mpi_gather(points);
 }
 
 class IBInterpolation
@@ -115,55 +84,96 @@ public:
 	/// information about mesh structure.
 	std::shared_ptr<IBMesh> fluid_mesh;
 	std::shared_ptr<Mesh> solid_mesh;
+
+	/// Define solid coordinates of gauss points and their weights.
+	std::vector<double> current_gauss_points;
+	std::vector<double> reference_gauss_points;
+	std::vector<double> weights;
+
+	/// Define solid coordinates of dofs.
+	std::vector<double> current_dof_points;
+	std::vector<double> reference_dof_points;
+
+	/// Define the length of sides of fluid cell.
 	std::vector<double> side_lengths;
 
 	/// construct function.
-	IBInterpolation(std::shared_ptr<IBMesh> fluid_mesh, std::shared_ptr<Mesh> solid_mesh) : fluid_mesh(fluid_mesh)
+	IBInterpolation(std::shared_ptr<IBMesh> fluid_mesh, 
+					std::shared_ptr<Mesh> solid_mesh,
+					std::shared_ptr<Function> solid) : 
+		fluid_mesh(fluid_mesh),
+		solid_mesh(solid_mesh)
 	{
 		side_lengths = fluid_mesh->side_length();
 		fluid_mesh->set_bandwidth(1);
+		
+		///
+		get_gauss_rule(solid_mesh, reference_gauss_points, weights);
+		current_gauss_points.resize(reference_gauss_points.size());
+
+		/// 
+		auto dof_coordinates = f.function_space()->tabulate_dof_coordinates();
+		for (size_t i = 0; i < dof_coordinates_long.size(); i += 4)
+		{
+			reference_dof_points.push_back(dof_coordinates_long[i]);
+			reference_dof_points.push_back(dof_coordinates_long[i + 1]);
+		}
+		current_dof_points.resize(reference_dof_points.size());
+	}
+	
+
+	void evaluate_current_points(const std::shared_ptr<Function> disp)
+	{
+		/// TODO : the size of reference and current points
+		///        should be the same.
+		for(size_t i=0; i < current_gauss_points.size()/2; ++i)
+		{
+			Array<double> x(2);
+			Array<double> v(2);
+			x[0] = current_gauss_points[i*2];
+			x[1] = current_gauss_points[i*2+1];
+			fluid.eval(v, x);
+			reference_gauss_points[i*2] = v[0];
+			reference_gauss_points[i*2+1] = v[1];
+		}
+		for(size_t i=0; i < reference_dof_points.size()/2; ++i)
+		{
+			Array<double> x(2);
+			Array<double> v(2);
+			x[0] = reference_dof_points[i*2];
+			x[1] = reference_dof_points[i*2+1];
+			fluid.eval(v, x);
+			current_dof_points[i*2] = v[0];
+			current_dof_points[i*2+1] = v[1];
+		}
 	}
 
 	/// Assign the solid displacement with the velocity of fluid.
 	void fluid_to_solid(Function &fluid, Function &solid)
 	{
 		/// calculate global dof coordinates and dofs.
-		auto dof_coordinates = get_global_dof_coordinates(solid);
 		std::vector<double> values(dof_coordinates.size() * 2);
 		fluid_to_solid_raw(fluid, values, dof_coordinates);
-
-		/// collect all solid_values vectors on every processes and
-		/// assign them to a function.
-		auto size = solid.vector()->local_size();
-		auto offset = solid.vector()->local_range().first;
-		std::vector<double> local_values(size);
-		for (size_t i = 0; i < size; ++i)
-			local_values[i] = values[i + offset];
-		solid.vector()->set_local(local_values);
-
-		/// Finalize assembly of tensor.
-		/// this step is quite important.
-		solid.vector()->apply("insert");
+		solid.vector()->set_local(values);
 	}
 
-	void fluid_to_solid_raw(Function &fluid, std::vector<double> &solid_values,
-							std::vector<std::array<double, 2>> &solid_coordinates)
+	void fluid_to_solid_raw(const Function &fluid, 
+							std::vector<double> &solid_values,
+							std::vector<double> &solid_coordinates)
 	{
-				/// the meshes of v and fluid_mesh should be the same.
-		/// TODO : compare two meshes
-		dolfin_assert(fluid.value_size() == solid_values.size() / solid_coordinates.size());
-
 		/// smart shortcut
 		auto value_size   = fluid.value_size();
 
 		/// iterate every solid_values coordinate.
 		for (size_t i = 0; i < solid_values.size() / value_size; i++)
 		{
-			Array<double> x(2, solid_coordinates[i].data());
+			Array<double> x(2);
 			Array<double> v(2);
+			x[0] = solid_coordinates[2*i];
+			x[1] = solid_coordinates[2*i+1];
 			fluid.eval(v, x);
-			for (size_t l = 0; l < value_size; l++)
-				solid_values[i * value_size + l] = v[l];
+			for (size_t j = 0; j < value_size; j++)
+				solid_values[i * value_size + j] = v[j];
 		}
 	}
 
@@ -171,17 +181,17 @@ public:
 	void solid_to_fluid(Function &fluid, Function &solid)
 	{
 		/// calculate global dof coordinates and dofs of solid.
-		/// auto solid_dof_coordinates = get_global_dof_coordinates(solid);
-		/// auto solid_values = get_global_dofs(solid);
-		std::vector<double> solid_dof_coordinates;
 		std::vector<double> solid_values;
-		std::vector<double> weights;
-		get_gauss_rule(solid, solid_dof_coordinates, solid_values, weights);
-
-		/// interpolates solid values into fluid mesh.
-		/// the returned fluid_values is the dofs of fluid function.
-
-		auto fluid_values = solid_to_fluid_raw(fluid, solid_values, solid_dof_coordinates, weights);
+		for (size_t i = 0; i < reference_gauss_points.size()/2; ++i){
+			Array<double> x(2);
+			Array<double> v(2);
+			x[0] = reference_gauss_points[2*i];
+			x[1] = reference_gauss_points[2*i+1];
+			solid.eval(v, x);
+			solid_values.push_back(v[0]);
+			solid_values.push_back(v[1]);
+		}
+		auto fluid_values = solid_to_fluid_raw(fluid, solid_values, current_gauss_points, weights);
 
 		/// assemble fluid_values into a function.
 		auto local_size = fluid.vector()->local_size();
@@ -207,7 +217,6 @@ public:
 		auto rank = dolfin::MPI::rank(fluid.function_space()->mesh()->mpi_comm());
 		auto mesh = fluid.function_space()->mesh();		// pointer to a mesh
 		auto dofmap = fluid.function_space()->dofmap(); // pointer to a dofmap
-		auto hmax = mesh->hmax();
 
 		/// get the element of function space
 		auto element = fluid.function_space()->element();
@@ -248,7 +257,7 @@ public:
 				for (size_t k = 0; k < cell_dofmap.size() / value_size; k++)
 				{
 					Point cell_point(coordinates[k][0], coordinates[k][1]);
-					double param = delta(solid_point, cell_point, hmax);
+					double param = delta(solid_point, cell_point);
 					if (cell_dofmap[k] < fluid.vector()->local_size() && param > 0.0)
 					{
 						indices_to_delta[cell_dofmap[k]] = param;
