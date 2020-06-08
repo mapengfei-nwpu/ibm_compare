@@ -26,32 +26,6 @@ std::vector<T> my_mpi_gather(std::vector<T> local)
 	return global;
 }
 
-std::vector<std::array<double, 2>> get_global_dof_coordinates(const Function &f)
-{
-	/// some shorcut
-	auto mesh = f.function_space()->mesh();
-	auto mpi_comm = mesh->mpi_comm();
-	auto mpi_size = dolfin::MPI::size(MPI_COMM_WORLD);
-
-	/// get local coordinate_dofs
-	auto local_dof_coordinates = f.function_space()->tabulate_dof_coordinates();
-
-	/// collect local coordinate_dofs on every process
-	auto dof_coordinates_long = my_mpi_gather(local_dof_coordinates);
-
-	/// unwrap it.
-	std::vector<std::array<double, 2>> dof_coordinates(dof_coordinates_long.size() / 4);
-	for (size_t i = 0; i < dof_coordinates_long.size(); i += 4)
-	{
-		dof_coordinates[i / 4][0] = dof_coordinates_long[i];
-		dof_coordinates[i / 4][1] = dof_coordinates_long[i + 1];
-	}
-
-	/// whatch the type of this function return.
-	/// it could be changed to "std::vector<std::array<double,3>>" if necessary.
-	return dof_coordinates;
-}
-
 void get_gauss_rule(
 	const std::shared_ptr<Mesh> mesh,
 	std::vector<double> &points,
@@ -112,11 +86,11 @@ public:
 		current_gauss_points.resize(reference_gauss_points.size());
 
 		/// 
-		auto dof_coordinates = f.function_space()->tabulate_dof_coordinates();
-		for (size_t i = 0; i < dof_coordinates_long.size(); i += 4)
+		auto dof_coordinates = solid->function_space()->tabulate_dof_coordinates();
+		for (size_t i = 0; i < dof_coordinates.size(); i += 4)
 		{
-			reference_dof_points.push_back(dof_coordinates_long[i]);
-			reference_dof_points.push_back(dof_coordinates_long[i + 1]);
+			reference_dof_points.push_back(dof_coordinates[i]);
+			reference_dof_points.push_back(dof_coordinates[i + 1]);
 		}
 		current_dof_points.resize(reference_dof_points.size());
 	}
@@ -130,11 +104,11 @@ public:
 		{
 			Array<double> x(2);
 			Array<double> v(2);
-			x[0] = current_gauss_points[i*2];
-			x[1] = current_gauss_points[i*2+1];
-			fluid.eval(v, x);
-			reference_gauss_points[i*2] = v[0];
-			reference_gauss_points[i*2+1] = v[1];
+			x[0] = reference_gauss_points[i*2];
+			x[1] = reference_gauss_points[i*2+1];
+			disp->eval(v, x);
+			current_gauss_points[i*2] = v[0];
+			current_gauss_points[i*2+1] = v[1];
 		}
 		for(size_t i=0; i < reference_dof_points.size()/2; ++i)
 		{
@@ -142,7 +116,7 @@ public:
 			Array<double> v(2);
 			x[0] = reference_dof_points[i*2];
 			x[1] = reference_dof_points[i*2+1];
-			fluid.eval(v, x);
+			disp->eval(v, x);
 			current_dof_points[i*2] = v[0];
 			current_dof_points[i*2+1] = v[1];
 		}
@@ -152,8 +126,8 @@ public:
 	void fluid_to_solid(Function &fluid, Function &solid)
 	{
 		/// calculate global dof coordinates and dofs.
-		std::vector<double> values(dof_coordinates.size() * 2);
-		fluid_to_solid_raw(fluid, values, dof_coordinates);
+		std::vector<double> values(current_dof_points.size());
+		fluid_to_solid_raw(fluid, values, current_dof_points);
 		solid.vector()->set_local(values);
 	}
 
@@ -190,6 +164,7 @@ public:
 			solid.eval(v, x);
 			solid_values.push_back(v[0]);
 			solid_values.push_back(v[1]);
+			std::cout<<v[1]<<", "<<v[0]<<std::endl;
 		}
 		auto fluid_values = solid_to_fluid_raw(fluid, solid_values, current_gauss_points, weights);
 
@@ -200,6 +175,7 @@ public:
 		for (size_t i = 0; i < local_size; ++i)
 		{
 			local_values[i] = fluid_values[i + offset];
+			/// std::cout<<local_values[i]<<std::endl;
 		}
 
 		fluid.vector()->set_local(local_values);
@@ -258,6 +234,7 @@ public:
 				{
 					Point cell_point(coordinates[k][0], coordinates[k][1]);
 					double param = delta(solid_point, cell_point);
+					std::cout<<"param: "<<param<<std::endl;
 					if (cell_dofmap[k] < fluid.vector()->local_size() && param > 0.0)
 					{
 						indices_to_delta[cell_dofmap[k]] = param;
@@ -321,8 +298,9 @@ namespace py = pybind11;
 PYBIND11_MODULE(IBInterpolation, m)
 {
     py::class_<IBInterpolation>(m, "IBInterpolation")
-        .def(py::init<std::shared_ptr<IBMesh>>())
+        .def(py::init<std::shared_ptr<IBMesh>, std::shared_ptr<Mesh>, std::shared_ptr<Function>>())
 		.def("solid_to_fluid", &IBInterpolation::solid_to_fluid)
 		.def("fluid_to_solid", &IBInterpolation::fluid_to_solid)
+		.def("evaluate_current_points", &IBInterpolation::evaluate_current_points)
 		;
 }
