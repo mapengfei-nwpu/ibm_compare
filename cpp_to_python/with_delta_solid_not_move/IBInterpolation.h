@@ -164,7 +164,6 @@ public:
 			solid.eval(v, x);
 			solid_values.push_back(v[0]);
 			solid_values.push_back(v[1]);
-			std::cout<<v[1]<<", "<<v[0]<<std::endl;
 		}
 		auto fluid_values = solid_to_fluid_raw(fluid, solid_values, current_gauss_points, weights);
 
@@ -175,7 +174,6 @@ public:
 		for (size_t i = 0; i < local_size; ++i)
 		{
 			local_values[i] = fluid_values[i + offset];
-			/// std::cout<<local_values[i]<<std::endl;
 		}
 
 		fluid.vector()->set_local(local_values);
@@ -234,7 +232,6 @@ public:
 				{
 					Point cell_point(coordinates[k][0], coordinates[k][1]);
 					double param = delta(solid_point, cell_point);
-					std::cout<<"param: "<<param<<std::endl;
 					if (cell_dofmap[k] < fluid.vector()->local_size() && param > 0.0)
 					{
 						indices_to_delta[cell_dofmap[k]] = param;
